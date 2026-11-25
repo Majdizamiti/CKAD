@@ -1,0 +1,1051 @@
+[
+  {
+    "id": "convert-pod-to-deployment-holy-api",
+    "number": 9,
+    "title": "Convert Pod to Deployment",
+    "difficulty": "Medium",
+    "description": "Convert a single Pod into a reliable 3-replica Deployment with hardened container security context and save the manifest.",
+    "instance": {
+      "host": "ckad9043",
+      "sshCommand": "ssh ckad9043",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad9043.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "The source Pod manifest is pre-created at /opt/course/9/holy-api-pod.yaml."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad9043",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "cat /opt/course/9/holy-api-pod.yaml",
+        "purpose": "Inspect the raw Pod template to reuse its container spec.",
+        "expectedStdout": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: holy-api\n  namespace: pluto\n  labels:\n    app: holy-api\nspec:\n  containers:\n  - name: holy-api\n    image: httpd:2.4.41-alpine\n    ports:\n    - containerPort: 80\n"
+      },
+      {
+        "exact": "kubectl get pod holy-api -n pluto -o yaml --export",
+        "purpose": "Optionally inspect the live Pod configuration as a source for the Deployment template.",
+        "expectedStdout": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: holy-api\n  namespace: pluto\nspec:\n  containers:\n  - name: holy-api\n    image: httpd:2.4.41-alpine\n"
+      },
+      {
+        "exact": "kubectl create deployment holy-api --image=httpd:2.4.41-alpine -n pluto --dry-run=client -o yaml > /opt/course/9/holy-api-deployment.yaml",
+        "purpose": "Generate a starting Deployment manifest under the required path.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "vi /opt/course/9/holy-api-deployment.yaml",
+        "purpose": "Edit the manifest to set replicas, labels, selector, and container security context.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "kubectl apply -f /opt/course/9/holy-api-deployment.yaml",
+        "purpose": "Create the Deployment in Namespace pluto.",
+        "expectedStdout": "deployment.apps/holy-api created"
+      },
+      {
+        "exact": "kubectl delete pod holy-api -n pluto",
+        "purpose": "Delete the original single Pod once the Deployment is running.",
+        "expectedStdout": "pod \"holy-api\" deleted"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [
+        {
+          "path": "/opt/course/9/holy-api-deployment.yaml",
+          "description": "Final Deployment manifest saved on ckad9043.",
+          "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: holy-api\n  namespace: pluto\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: holy-api\n  template:\n    metadata:\n      labels:\n        app: holy-api\n    spec:\n      containers:\n      - name: holy-api\n        image: httpd:2.4.41-alpine\n        ports:\n        - containerPort: 80\n        securityContext:\n          allowPrivilegeEscalation: false\n          privileged: false\n"
+        }
+      ],
+      "resources": [
+        {
+          "kind": "Deployment",
+          "namespace": "pluto",
+          "name": "holy-api",
+          "labels": {
+            "app": "holy-api"
+          },
+          "annotations": {}
+        }
+      ],
+      "verificationCommands": [
+        "kubectl get deploy holy-api -n pluto",
+        "kubectl describe deploy holy-api -n pluto",
+        "kubectl get pods -n pluto -l app=holy-api",
+        "kubectl get pod holy-api -n pluto"
+      ]
+    },
+    "successCriteria": [
+      "A Deployment named holy-api exists in Namespace pluto with 3 replicas.",
+      "The Deployment pods use the container image from the original Pod.",
+      "The container securityContext sets allowPrivilegeEscalation: false and privileged: false.",
+      "The final manifest is saved at /opt/course/9/holy-api-deployment.yaml.",
+      "The original standalone Pod named holy-api no longer exists in Namespace pluto."
+    ],
+    "rationale": "A Deployment manages ReplicaSets which in turn manage Pods, giving declarative replicas and self-healing. The Pod template's labels must match the Deployment selector, and container-level securityContext fields constrain privilege escalation and privileged mode.",
+    "referenceNotes": [
+      "Deployment selectors are immutable; the Pod template labels must satisfy matchLabels.",
+      "Use kubectl create deployment --dry-run=client -o yaml to bootstrap a manifest quickly.",
+      "Deleting the original Pod after the Deployment owns labeled Pods avoids name conflicts and downtime."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "In Namespace pluto there is a single Pod named holy-api. It has been working okay for a while now but Team Pluto needs it to be more reliable. Convert the Pod into a Deployment named holy-api with 3 replicas and delete the single Pod once done. The raw Pod template file is available at /opt/course/9/holy-api-pod.yaml. In addition, the new Deployment should set allowPrivilegeEscalation: false and privileged: false for the security context on container level. Please create the Deployment and save its yaml under /opt/course/9/holy-api-deployment.yaml.",
+      "instruction": "Reuse the container spec from `/opt/course/9/holy-api-pod.yaml` to create a 3-replica Deployment `holy-api` in Namespace `pluto` with matching template labels and container-level `allowPrivilegeEscalation: false` and `privileged: false`. Save it to `/opt/course/9/holy-api-deployment.yaml`, apply it, then delete the original Pod. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/9/holy-api-deployment.yaml",
+        "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: holy-api\n  namespace: pluto\nspec:\n  replicas: TODO\n  selector:\n    matchLabels:\n      app: holy-api\n  template:\n    metadata:\n      labels:\n        app: holy-api\n    spec:\n      containers:\n      - name: holy-api\n        image: httpd:2.4.41-alpine\n        ports:\n        - containerPort: 80\n        securityContext:\n          allowPrivilegeEscalation: TODO\n          privileged: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "cat /opt/course/9/holy-api-pod.yaml": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: holy-api\n  namespace: pluto\n  labels:\n    app: holy-api\nspec:\n  containers:\n  - name: holy-api\n    image: httpd:2.4.41-alpine\n    ports:\n    - containerPort: 80\n",
+        "kubectl get pod holy-api -n pluto -o yaml --export": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: holy-api\n  namespace: pluto\nspec:\n  containers:\n  - name: holy-api\n    image: httpd:2.4.41-alpine\n",
+        "kubectl create deployment holy-api --image=httpd:2.4.41-alpine -n pluto --dry-run=client -o yaml > /opt/course/9/holy-api-deployment.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  creationTimestamp: null\n  labels:\n    app: holy-api\n  name: holy-api\n  namespace: pluto\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: holy-api\n  template:\n    metadata:\n      labels:\n        app: holy-api\n    spec:\n      containers:\n      - image: httpd:2.4.41-alpine\n        name: holy-api\nstatus: {}\n",
+        "vi /opt/course/9/holy-api-deployment.yaml": "",
+        "kubectl apply -f /opt/course/9/holy-api-deployment.yaml": "deployment.apps/holy-api created\n",
+        "kubectl delete pod holy-api -n pluto": "pod \"holy-api\" deleted\n"
+      },
+      "initialFiles": {
+        "/opt/course/9/holy-api-pod.yaml": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: holy-api\n  namespace: pluto\n  labels:\n    app: holy-api\nspec:\n  containers:\n  - name: holy-api\n    image: httpd:2.4.41-alpine\n    ports:\n    - containerPort: 80\n"
+      },
+      "effects": {
+        "vi /opt/course/9/holy-api-deployment.yaml": {
+          "files": {
+            "/opt/course/9/holy-api-deployment.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: holy-api\n  namespace: pluto\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: holy-api\n  template:\n    metadata:\n      labels:\n        app: holy-api\n    spec:\n      containers:\n      - name: holy-api\n        image: httpd:2.4.41-alpine\n        ports:\n        - containerPort: 80\n        securityContext:\n          allowPrivilegeEscalation: false\n          privileged: false\n"
+          },
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": []
+        },
+        "kubectl apply -f /opt/course/9/holy-api-deployment.yaml": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "Deployment",
+              "namespace": "pluto",
+              "name": "holy-api",
+              "labels": {
+                "app": "holy-api"
+              }
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        },
+        "kubectl delete pod holy-api -n pluto": {
+          "files": {},
+          "addResources": [],
+          "removeResources": [
+            {
+              "kind": "Pod",
+              "namespace": "pluto",
+              "name": "holy-api"
+            }
+          ],
+          "updateResources": []
+        }
+      }
+    }
+  },
+  {
+    "id": "clusterip-service-project-plt-6cc",
+    "number": 10,
+    "title": "ClusterIP Service and Curl Test",
+    "difficulty": "Medium",
+    "description": "Create a labeled Pod and ClusterIP Service with port redirection, then verify access and logs from a temporary Pod.",
+    "instance": {
+      "host": "ckad9043",
+      "sshCommand": "ssh ckad9043",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad9043.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "Write the response and log files under /opt/course/10 on ckad9043."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad9043",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl run project-plt-6cc-api --image=nginx:1.17.3-alpine -n pluto --labels=project=plt-6cc-api --port=80",
+        "purpose": "Create the labeled nginx Pod targeted by the Service.",
+        "expectedStdout": "pod/project-plt-6cc-api created"
+      },
+      {
+        "exact": "kubectl expose pod project-plt-6cc-api -n pluto --name=project-plt-6cc-svc --type=ClusterIP --selector=project=plt-6cc-api --port=3333 --target-port=80",
+        "purpose": "Create the internal Service redirecting TCP port 3333 to container port 80.",
+        "expectedStdout": "service/project-plt-6cc-svc exposed"
+      },
+      {
+        "exact": "kubectl run tmp-nginx --image=nginx:alpine -n pluto --rm -it --restart=Never -- curl -s project-plt-6cc-svc:3333 > /opt/course/10/service_test.html",
+        "purpose": "Request the Service from a temporary Pod and save the HTML response.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "kubectl logs project-plt-6cc-api -n pluto > /opt/course/10/service_test.log",
+        "purpose": "Save the nginx access logs showing the incoming request.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "kubectl get svc project-plt-6cc-svc -n pluto -o wide",
+        "purpose": "Confirm the Service is ClusterIP with the expected port mapping.",
+        "expectedStdout": "NAME                   TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE   SELECTOR\nproject-plt-6cc-svc    ClusterIP   10.96.145.22    <none>        3333/TCP   1m    project=plt-6cc-api\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [
+        {
+          "path": "/opt/course/10/service_test.html",
+          "description": "HTML response fetched from the ClusterIP Service.",
+          "content": "<!DOCTYPE html>\n<html>\n<head>\n<title>Welcome to nginx!</title>\n</head>\n<body>\n<h1>Welcome to nginx!</h1>\n</body>\n</html>\n"
+        },
+        {
+          "path": "/opt/course/10/service_test.log",
+          "description": "nginx Pod logs containing the request from the temporary Pod.",
+          "content": "10.244.0.12 - - [24/Nov/2026:09:15:30 +0000] \"GET / HTTP/1.1\" 200 612 \"-\" \"curl/8.4.0\" \"-\"\n"
+        }
+      ],
+      "resources": [
+        {
+          "kind": "Pod",
+          "namespace": "pluto",
+          "name": "project-plt-6cc-api",
+          "labels": {
+            "project": "plt-6cc-api"
+          },
+          "annotations": {}
+        },
+        {
+          "kind": "Service",
+          "namespace": "pluto",
+          "name": "project-plt-6cc-svc",
+          "labels": {},
+          "annotations": {}
+        }
+      ],
+      "verificationCommands": [
+        "kubectl get pod project-plt-6cc-api -n pluto --show-labels",
+        "kubectl get svc project-plt-6cc-svc -n pluto",
+        "kubectl describe svc project-plt-6cc-svc -n pluto",
+        "cat /opt/course/10/service_test.html",
+        "cat /opt/course/10/service_test.log"
+      ]
+    },
+    "successCriteria": [
+      "Pod project-plt-6cc-api exists in pluto with image nginx:1.17.3-alpine and label project=plt-6cc-api.",
+      "ClusterIP Service project-plt-6cc-svc exists in pluto selecting that Pod.",
+      "The Service maps port 3333 to target port 80 over TCP.",
+      "The HTML response is saved in /opt/course/10/service_test.html.",
+      "The Pod logs are saved in /opt/course/10/service_test.log and show the request."
+    ],
+    "rationale": "A ClusterIP Service provides a stable in-cluster virtual IP and DNS name. Its selector matches Pod labels, and port/targetPort translate the Service port to the container port; endpoint wiring can be verified with curl from another Pod.",
+    "referenceNotes": [
+      "Service selectors match Pod labels, not Deployment names.",
+      "ClusterIP is the default Service type and is only reachable inside the cluster.",
+      "Ephemeral Pods with --rm are useful for in-cluster connectivity tests."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Team Pluto needs a new cluster internal Service. Create a ClusterIP Service named project-plt-6cc-svc in Namespace pluto. This Service should expose a single Pod named project-plt-6cc-api of image nginx:1.17.3-alpine, create that Pod as well. The Pod should be identified by label project: plt-6cc-api. The Service should use tcp port redirection of 3333:80. Finally use curl from a temporary nginx:alpine Pod to get the response from the Service. Write the response into /opt/course/10/service_test.html on ckad9043. Also check if the logs of Pod project-plt-6cc-api show the request and write those into /opt/course/10/service_test.log on ckad9043.",
+      "instruction": "Create Pod `project-plt-6cc-api` (image `nginx:1.17.3-alpine`, label `project: plt-6cc-api`) and a ClusterIP Service `project-plt-6cc-svc` in `pluto` with port `3333` targeting `80`. From a temporary `nginx:alpine` Pod, curl the Service, save the response to `/opt/course/10/service_test.html` and the Pod logs to `/opt/course/10/service_test.log`. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/10/ (Pod + Service heredoc manifests)",
+        "content": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: project-plt-6cc-api\n  namespace: pluto\n  labels:\n    project: TODO\nspec:\n  containers:\n  - name: TODO\n    image: TODO\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: project-plt-6cc-svc\n  namespace: pluto\nspec:\n  type: ClusterIP\n  selector:\n    project: TODO\n  ports:\n  - port: TODO\n    targetPort: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "kubectl run project-plt-6cc-api --image=nginx:1.17.3-alpine -n pluto --labels=project=plt-6cc-api --port=80": "pod/project-plt-6cc-api created\n",
+        "kubectl expose pod project-plt-6cc-api -n pluto --name=project-plt-6cc-svc --type=ClusterIP --selector=project=plt-6cc-api --port=3333 --target-port=80": "service/project-plt-6cc-svc exposed\n",
+        "kubectl run tmp-nginx --image=nginx:alpine -n pluto --rm -it --restart=Never -- curl -s project-plt-6cc-svc:3333 > /opt/course/10/service_test.html": "<!DOCTYPE html>\n<html>\n<head>\n<title>Welcome to nginx!</title>\n</head>\n<body>\n<h1>Welcome to nginx!</h1>\n</body>\n</html>\n",
+        "kubectl logs project-plt-6cc-api -n pluto > /opt/course/10/service_test.log": "10.244.0.12 - - [24/Nov/2026:09:15:30 +0000] \"GET / HTTP/1.1\" 200 612 \"-\" \"curl/8.4.0\" \"-\"\n",
+        "kubectl get svc project-plt-6cc-svc -n pluto -o wide": "NAME                   TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE   SELECTOR\nproject-plt-6cc-svc    ClusterIP   10.96.145.22    <none>        3333/TCP   1m    project=plt-6cc-api\n"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl run project-plt-6cc-api --image=nginx:1.17.3-alpine -n pluto --labels=project=plt-6cc-api --port=80": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "Pod",
+              "namespace": "pluto",
+              "name": "project-plt-6cc-api",
+              "labels": {
+                "project": "plt-6cc-api"
+              }
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        },
+        "kubectl expose pod project-plt-6cc-api -n pluto --name=project-plt-6cc-svc --type=ClusterIP --selector=project=plt-6cc-api --port=3333 --target-port=80": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "Service",
+              "namespace": "pluto",
+              "name": "project-plt-6cc-svc",
+              "labels": {}
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        }
+      }
+    }
+  },
+  {
+    "id": "build-push-run-sun-cipher-image",
+    "number": 11,
+    "title": "Docker and Podman Image Build",
+    "difficulty": "Hard",
+    "description": "Fix a Dockerfile environment variable, build and push with Docker and Podman, then run a Podman container and save its logs and container list.",
+    "instance": {
+      "host": "ckad9043",
+      "sshCommand": "ssh ckad9043",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad9043.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "Run all commands as user candidate and use sudo docker for Docker."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad9043",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "cd /opt/course/11/image && sed -i 's/SUN_CIPHER_ID=.*/SUN_CIPHER_ID=5b9c1065-e39d-4a43-a04a-e59bcea3e03f/' Dockerfile",
+        "purpose": "Set SUN_CIPHER_ID to the required hardcoded value in the Dockerfile.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "cd /opt/course/11/image && sudo docker build -t registry.killer.sh:5000/sun-cipher:latest -t registry.killer.sh:5000/sun-cipher:v1-docker . && sudo docker push registry.killer.sh:5000/sun-cipher:latest && sudo docker push registry.killer.sh:5000/sun-cipher:v1-docker",
+        "purpose": "Build both Docker tags and push them to the registry.",
+        "expectedStdout": "Successfully built 3f9a1b2c4d5e\nSuccessfully tagged registry.killer.sh:5000/sun-cipher:latest\nSuccessfully tagged registry.killer.sh:5000/sun-cipher:v1-docker\nlatest: digest: sha256:aaaa1111 size: 528\nv1-docker: digest: sha256:bbbb2222 size: 528\n"
+      },
+      {
+        "exact": "cd /opt/course/11/image && podman build -t registry.killer.sh:5000/sun-cipher:v1-podman . && podman push registry.killer.sh:5000/sun-cipher:v1-podman",
+        "purpose": "Build and push the Podman v1-podman tag as user candidate.",
+        "expectedStdout": "STEP 1/4: FROM golang:1.13-alpine\nSTEP 4/4: CMD [\"go\", \"run\", \"main.go\"]\nCOMMIT registry.killer.sh:5000/sun-cipher:v1-podman\nSuccessfully tagged registry.killer.sh:5000/sun-cipher:v1-podman\nWriting manifest to image destination\n"
+      },
+      {
+        "exact": "podman run -d --name sun-cipher registry.killer.sh:5000/sun-cipher:v1-podman",
+        "purpose": "Start the detached Podman container as the candidate user.",
+        "expectedStdout": "7f3c9a1d2e4b\n"
+      },
+      {
+        "exact": "podman logs sun-cipher > /opt/course/11/logs",
+        "purpose": "Save the container's stdout into the required logs file.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "podman ps > /opt/course/11/containers",
+        "purpose": "Save the list of running Podman containers into the required file.",
+        "expectedStdout": ""
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [
+        {
+          "path": "/opt/course/11/logs",
+          "description": "Logs produced by the Podman container sun-cipher.",
+          "content": "SUN_CIPHER_ID=5b9c1065-e39d-4a43-a04a-e59bcea3e03f\n"
+        },
+        {
+          "path": "/opt/course/11/containers",
+          "description": "List of running Podman containers.",
+          "content": "CONTAINER ID  IMAGE                                             COMMAND               CREATED         STATUS             PORTS   NAMES\n7f3c9a1d2e4b  registry.killer.sh:5000/sun-cipher:v1-podman       go run main.go       2 minutes ago   Up 2 minutes              sun-cipher\n"
+        }
+      ],
+      "resources": [],
+      "verificationCommands": [
+        "grep SUN_CIPHER_ID /opt/course/11/image/Dockerfile",
+        "sudo docker images | grep sun-cipher",
+        "podman images | grep sun-cipher",
+        "podman ps",
+        "cat /opt/course/11/logs",
+        "cat /opt/course/11/containers"
+      ]
+    },
+    "successCriteria": [
+      "The Dockerfile sets ENV SUN_CIPHER_ID=5b9c1065-e39d-4a43-a04a-e59bcea3e03f.",
+      "Docker images tagged latest and v1-docker were built and pushed to registry.killer.sh:5000/sun-cipher.",
+      "A Podman image tagged v1-podman was built and pushed to the same repository.",
+      "A background Podman container named sun-cipher runs from the v1-podman image as user candidate.",
+      "The container logs and running Podman container list are saved under /opt/course/11."
+    ],
+    "rationale": "Dockerfile ENV instructions bake configuration into the image layer. Docker and Podman are separate daemons with separate local image stores, so each must build and push its own tags; Podman rootless containers run under the invoking user.",
+    "referenceNotes": [
+      "Use sudo docker only where explicitly allowed; Podman runs rootless as the candidate user.",
+      "Multiple -t flags on docker build apply several tags to the same built image.",
+      "podman logs and podman ps provide the output required for the two files."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "During the last monthly meeting you mentioned your strong expertise in container technology. Now the Build&Release team of department Sun is in need of your insight knowledge. There are files to build a container image located at /opt/course/11/image. The container will run a Golang application which outputs information to stdout. NOTE: Make sure to run all commands as user candidate, for docker use sudo docker. 1. Change the Dockerfile. The value of the environment variable SUN_CIPHER_ID should be set to the hardcoded value 5b9c1065-e39d-4a43-a04a-e59bcea3e03f 2. Build the image using Docker, named registry.killer.sh:5000/sun-cipher, tagged as latest and v1-docker, push these to the registry 3. Build the image using Podman, named registry.killer.sh:5000/sun-cipher, tagged as v1-podman, push it to the registry 4. Run a container using Podman, which keeps running in the background, named sun-cipher using image registry.killer.sh:5000/sun-cipher:v1-podman. Run the container from candidate@ckad9043 and not root@ckad9043 5. Write the logs your container sun-cipher produced into /opt/course/11/logs. Then write a list of all running Podman containers into /opt/course/11/containers on ckad9043.",
+      "instruction": "Set `SUN_CIPHER_ID` to `5b9c1065-e39d-4a43-a04a-e59bcea3e03f` in the Dockerfile, build and push Docker tags `latest` and `v1-docker`, build and push Podman tag `v1-podman` as user `candidate`, run a detached Podman container named `sun-cipher`, then save its logs to `/opt/course/11/logs` and the running-container list to `/opt/course/11/containers`. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/11/image/Dockerfile",
+        "content": "FROM golang:1.13-alpine\nCOPY main.go .\nENV SUN_CIPHER_ID=TODO\nCMD [\"go\", \"run\", \"main.go\"]\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "cd /opt/course/11/image && sed -i 's/SUN_CIPHER_ID=.*/SUN_CIPHER_ID=5b9c1065-e39d-4a43-a04a-e59bcea3e03f/' Dockerfile": "",
+        "cd /opt/course/11/image && sudo docker build -t registry.killer.sh:5000/sun-cipher:latest -t registry.killer.sh:5000/sun-cipher:v1-docker . && sudo docker push registry.killer.sh:5000/sun-cipher:latest && sudo docker push registry.killer.sh:5000/sun-cipher:v1-docker": "Successfully built 3f9a1b2c4d5e\nSuccessfully tagged registry.killer.sh:5000/sun-cipher:latest\nSuccessfully tagged registry.killer.sh:5000/sun-cipher:v1-docker\nlatest: digest: sha256:aaaa1111 size: 528\nv1-docker: digest: sha256:bbbb2222 size: 528\n",
+        "cd /opt/course/11/image && podman build -t registry.killer.sh:5000/sun-cipher:v1-podman . && podman push registry.killer.sh:5000/sun-cipher:v1-podman": "STEP 1/4: FROM golang:1.13-alpine\nSTEP 4/4: CMD [\"go\", \"run\", \"main.go\"]\nCOMMIT registry.killer.sh:5000/sun-cipher:v1-podman\nSuccessfully tagged registry.killer.sh:5000/sun-cipher:v1-podman\nWriting manifest to image destination\n",
+        "podman run -d --name sun-cipher registry.killer.sh:5000/sun-cipher:v1-podman": "7f3c9a1d2e4b\n",
+        "podman logs sun-cipher > /opt/course/11/logs": "SUN_CIPHER_ID=5b9c1065-e39d-4a43-a04a-e59bcea3e03f\n",
+        "podman ps > /opt/course/11/containers": "CONTAINER ID  IMAGE                                             COMMAND               CREATED         STATUS             PORTS   NAMES\n7f3c9a1d2e4b  registry.killer.sh:5000/sun-cipher:v1-podman       go run main.go       2 minutes ago   Up 2 minutes              sun-cipher\n"
+      },
+      "initialFiles": {
+        "/opt/course/11/image/Dockerfile": "FROM golang:1.13-alpine\nCOPY main.go .\nENV SUN_CIPHER_ID=CHANGEME\nCMD [\"go\", \"run\", \"main.go\"]\n"
+      },
+      "effects": {
+        "cd /opt/course/11/image && sed -i 's/SUN_CIPHER_ID=.*/SUN_CIPHER_ID=5b9c1065-e39d-4a43-a04a-e59bcea3e03f/' Dockerfile": {
+          "files": {
+            "/opt/course/11/image/Dockerfile": "FROM golang:1.13-alpine\nCOPY main.go .\nENV SUN_CIPHER_ID=5b9c1065-e39d-4a43-a04a-e59bcea3e03f\nCMD [\"go\", \"run\", \"main.go\"]\n"
+          },
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": []
+        },
+        "podman run -d --name sun-cipher registry.killer.sh:5000/sun-cipher:v1-podman": {
+          "files": {},
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": []
+        }
+      }
+    }
+  },
+  {
+    "id": "earthflower-pv-pvc-deployment",
+    "number": 12,
+    "title": "PV, PVC and Volume Mount Deployment",
+    "difficulty": "Medium",
+    "description": "Create a hostPath PersistentVolume, a matching PVC in earth, and a Deployment that mounts the claim.",
+    "instance": {
+      "host": "ckad9043",
+      "sshCommand": "ssh ckad9043",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad9043.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "Do not set storageClassName on either the PV or the PVC."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad9043",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: PersistentVolume\nmetadata:\n  name: earth-project-earthflower-pv\nspec:\n  capacity:\n    storage: 2Gi\n  accessModes:\n  - ReadWriteOnce\n  hostPath:\n    path: /Volumes/Data\nEOF",
+        "purpose": "Create the 2Gi ReadWriteOnce hostPath PersistentVolume with no storage class.",
+        "expectedStdout": "persistentvolume/earth-project-earthflower-pv created\n"
+      },
+      {
+        "exact": "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: earth-project-earthflower-pvc\n  namespace: earth\nspec:\n  accessModes:\n  - ReadWriteOnce\n  resources:\n    requests:\n      storage: 2Gi\n  storageClassName: \"\"\nEOF",
+        "purpose": "Create the PVC in earth requesting 2Gi without a storage class.",
+        "expectedStdout": "persistentvolumeclaim/earth-project-earthflower-pvc created\n"
+      },
+      {
+        "exact": "kubectl get pv earth-project-earthflower-pv",
+        "purpose": "Confirm the PV is Bound to the claim.",
+        "expectedStdout": "NAME                          CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                                      STORAGECLASS   REASON   AGE\nearth-project-earthflower-pv   2Gi        RWO            Retain           Bound    earth/earth-project-earthflower-pvc                                   1m\n"
+      },
+      {
+        "exact": "kubectl apply -f - <<'EOF'\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: project-earthflower\n  namespace: earth\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: project-earthflower\n  template:\n    metadata:\n      labels:\n        app: project-earthflower\n    spec:\n      containers:\n      - name: httpd\n        image: httpd:2.4.41-alpine\n        volumeMounts:\n        - name: project-data\n          mountPath: /tmp/project-data\n      volumes:\n      - name: project-data\n        persistentVolumeClaim:\n          claimName: earth-project-earthflower-pvc\nEOF",
+        "purpose": "Create the Deployment that mounts the PVC at /tmp/project-data.",
+        "expectedStdout": "deployment.apps/project-earthflower created\n"
+      },
+      {
+        "exact": "kubectl describe pod -n earth -l app=project-earthflower",
+        "purpose": "Verify the pod schedule and volume mount details.",
+        "expectedStdout": "Name:         project-earthflower-6d7f8c9b4-x2mnp\nNamespace:    earth\nMounts:\n  /tmp/project-data from project-data (rw)\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [],
+      "resources": [
+        {
+          "kind": "PersistentVolume",
+          "namespace": "",
+          "name": "earth-project-earthflower-pv",
+          "labels": {},
+          "annotations": {}
+        },
+        {
+          "kind": "PersistentVolumeClaim",
+          "namespace": "earth",
+          "name": "earth-project-earthflower-pvc",
+          "labels": {},
+          "annotations": {}
+        },
+        {
+          "kind": "Deployment",
+          "namespace": "earth",
+          "name": "project-earthflower",
+          "labels": {
+            "app": "project-earthflower"
+          },
+          "annotations": {}
+        }
+      ],
+      "verificationCommands": [
+        "kubectl get pv earth-project-earthflower-pv",
+        "kubectl get pvc earth-project-earthflower-pvc -n earth",
+        "kubectl get deploy project-earthflower -n earth",
+        "kubectl describe deploy project-earthflower -n earth"
+      ]
+    },
+    "successCriteria": [
+      "A PV named earth-project-earthflower-pv exists with 2Gi capacity, ReadWriteOnce, hostPath /Volumes/Data, and no storageClassName.",
+      "A PVC named earth-project-earthflower-pvc exists in earth requesting 2Gi ReadWriteOnce with no storage class and is Bound.",
+      "A Deployment named project-earthflower exists in earth using image httpd:2.4.41-alpine.",
+      "The Deployment pods mount the PVC at /tmp/project-data."
+    ],
+    "rationale": "Static provisioning binds a PVC to a PV when capacity, access modes, and storageClassName match. Setting storageClassName: \"\" disables dynamic provisioning so the claim can bind to a classless PV; pods consume storage through a volume referencing the PVC and a container volumeMount.",
+    "referenceNotes": [
+      "PersistentVolumes are cluster-scoped; PersistentVolumeClaims are namespaced.",
+      "An omitted storageClassName on a PV means the PV has no class and can satisfy classless claims.",
+      "A volumeMount mountPath must be an absolute path inside the container."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Create a new PersistentVolume named earth-project-earthflower-pv. It should have a capacity of 2Gi, accessMode ReadWriteOnce, hostPath /Volumes/Data and no storageClassName defined. Next create a new PersistentVolumeClaim in Namespace earth named earth-project-earthflower-pvc. It should request 2Gi storage, accessMode ReadWriteOnce and should not define a storageClassName. The PVC should bound to the PV correctly. Finally create a new Deployment project-earthflower in Namespace earth which mounts that volume at /tmp/project-data. The Pods of that Deployment should be of image httpd:2.4.41-alpine.",
+      "instruction": "Create a classless hostPath PV `earth-project-earthflower-pv` (2Gi, ReadWriteOnce, `/Volumes/Data`), a matching classless PVC `earth-project-earthflower-pvc` in Namespace `earth`, and Deployment `project-earthflower` mounting the PVC at `/tmp/project-data` with image `httpd:2.4.41-alpine`. Verify the PVC binds. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/12/ (three heredoc manifests)",
+        "content": "apiVersion: v1\nkind: PersistentVolume\nmetadata:\n  name: earth-project-earthflower-pv\nspec:\n  capacity:\n    storage: TODO\n  accessModes:\n  - TODO\n  hostPath:\n    path: TODO\n---\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: earth-project-earthflower-pvc\n  namespace: earth\nspec:\n  accessModes:\n  - TODO\n  resources:\n    requests:\n      storage: TODO\n  storageClassName: \"\"\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: project-earthflower\n  namespace: earth\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: project-earthflower\n  template:\n    metadata:\n      labels:\n        app: project-earthflower\n    spec:\n      containers:\n      - name: httpd\n        image: httpd:2.4.41-alpine\n        volumeMounts:\n        - name: project-data\n          mountPath: TODO\n      volumes:\n      - name: project-data\n        persistentVolumeClaim:\n          claimName: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: PersistentVolume\nmetadata:\n  name: earth-project-earthflower-pv\nspec:\n  capacity:\n    storage: 2Gi\n  accessModes:\n  - ReadWriteOnce\n  hostPath:\n    path: /Volumes/Data\nEOF": "persistentvolume/earth-project-earthflower-pv created\n",
+        "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: earth-project-earthflower-pvc\n  namespace: earth\nspec:\n  accessModes:\n  - ReadWriteOnce\n  resources:\n    requests:\n      storage: 2Gi\n  storageClassName: \"\"\nEOF": "persistentvolumeclaim/earth-project-earthflower-pvc created\n",
+        "kubectl get pv earth-project-earthflower-pv": "NAME                          CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                                      STORAGECLASS   REASON   AGE\nearth-project-earthflower-pv   2Gi        RWO            Retain           Bound    earth/earth-project-earthflower-pvc                                   1m\n",
+        "kubectl apply -f - <<'EOF'\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: project-earthflower\n  namespace: earth\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: project-earthflower\n  template:\n    metadata:\n      labels:\n        app: project-earthflower\n    spec:\n      containers:\n      - name: httpd\n        image: httpd:2.4.41-alpine\n        volumeMounts:\n        - name: project-data\n          mountPath: /tmp/project-data\n      volumes:\n      - name: project-data\n        persistentVolumeClaim:\n          claimName: earth-project-earthflower-pvc\nEOF": "deployment.apps/project-earthflower created\n",
+        "kubectl describe pod -n earth -l app=project-earthflower": "Name:         project-earthflower-6d7f8c9b4-x2mnp\nNamespace:    earth\nMounts:\n  /tmp/project-data from project-data (rw)\n"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: PersistentVolume\nmetadata:\n  name: earth-project-earthflower-pv\nspec:\n  capacity:\n    storage: 2Gi\n  accessModes:\n  - ReadWriteOnce\n  hostPath:\n    path: /Volumes/Data\nEOF": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "PersistentVolume",
+              "namespace": "",
+              "name": "earth-project-earthflower-pv",
+              "labels": {}
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        },
+        "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: earth-project-earthflower-pvc\n  namespace: earth\nspec:\n  accessModes:\n  - ReadWriteOnce\n  resources:\n    requests:\n      storage: 2Gi\n  storageClassName: \"\"\nEOF": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "PersistentVolumeClaim",
+              "namespace": "earth",
+              "name": "earth-project-earthflower-pvc",
+              "labels": {}
+            }
+          ],
+          "removeResources": [],
+          "updateResources": [
+            {
+              "kind": "PersistentVolume",
+              "namespace": "",
+              "name": "earth-project-earthflower-pv",
+              "labels": {},
+              "annotations": {}
+            }
+          ]
+        },
+        "kubectl apply -f - <<'EOF'\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: project-earthflower\n  namespace: earth\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: project-earthflower\n  template:\n    metadata:\n      labels:\n        app: project-earthflower\n    spec:\n      containers:\n      - name: httpd\n        image: httpd:2.4.41-alpine\n        volumeMounts:\n        - name: project-data\n          mountPath: /tmp/project-data\n      volumes:\n      - name: project-data\n        persistentVolumeClaim:\n          claimName: earth-project-earthflower-pvc\nEOF": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "Deployment",
+              "namespace": "earth",
+              "name": "project-earthflower",
+              "labels": {
+                "app": "project-earthflower"
+              }
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        }
+      }
+    }
+  },
+  {
+    "id": "moon-retain-storageclass-pvc",
+    "number": 13,
+    "title": "StorageClass with Retain Policy",
+    "difficulty": "Medium",
+    "description": "Create a custom StorageClass with Retain reclaim policy, a pending PVC using it, and capture the provisioning failure reason.",
+    "instance": {
+      "host": "ckad9043",
+      "sshCommand": "ssh ckad9043",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad9043.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "The moon-retainer provisioner does not exist yet, so the PVC is expected to remain Pending."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad9043",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl apply -f - <<'EOF'\napiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: moon-retain\nprovisioner: moon-retainer\nreclaimPolicy: Retain\nEOF",
+        "purpose": "Create the StorageClass using the custom provisioner and Retain policy.",
+        "expectedStdout": "storageclass.storage.k8s.io/moon-retain created\n"
+      },
+      {
+        "exact": "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: moon-pvc-126\n  namespace: moon\nspec:\n  accessModes:\n  - ReadWriteOnce\n  resources:\n    requests:\n      storage: 3Gi\n  storageClassName: moon-retain\nEOF",
+        "purpose": "Create the 3Gi PVC in moon using the new StorageClass.",
+        "expectedStdout": "persistentvolumeclaim/moon-pvc-126 created\n"
+      },
+      {
+        "exact": "kubectl describe pvc moon-pvc-126 -n moon",
+        "purpose": "Inspect the PVC events to find the provisioning failure message.",
+        "expectedStdout": "Name:          moon-pvc-126\nNamespace:     moon\nStatus:        Pending\nCapacity:\nAccess Modes:  [ReadWriteOnce]\nStorageClass:  moon-retain\nEvents:\n  Type     Reason              Age   From                         Message\n  -------  ------              ----  ----                         -------\n  Warning  ProvisioningFailed  10s   persistentvolume-controller  no volume plugin matched name: moon-retainer\n"
+      },
+      {
+        "exact": "kubectl get pvc moon-pvc-126 -n moon -o jsonpath='{.status.conditions[0].message}' > /opt/course/13/pvc-126-reason",
+        "purpose": "Save the provisioning failure message from the PVC status into the required file.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "kubectl get sc moon-retain -o yaml",
+        "purpose": "Verify the StorageClass provisioner and reclaim policy.",
+        "expectedStdout": "apiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: moon-retain\nprovisioner: moon-retainer\nreclaimPolicy: Retain\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [
+        {
+          "path": "/opt/course/13/pvc-126-reason",
+          "description": "Provisioning failure message extracted from the PVC status.",
+          "content": "no volume plugin matched name: moon-retainer\n"
+        }
+      ],
+      "resources": [
+        {
+          "kind": "StorageClass",
+          "namespace": "",
+          "name": "moon-retain",
+          "labels": {},
+          "annotations": {}
+        },
+        {
+          "kind": "PersistentVolumeClaim",
+          "namespace": "moon",
+          "name": "moon-pvc-126",
+          "labels": {},
+          "annotations": {}
+        }
+      ],
+      "verificationCommands": [
+        "kubectl get sc moon-retain",
+        "kubectl describe sc moon-retain",
+        "kubectl get pvc moon-pvc-126 -n moon",
+        "kubectl describe pvc moon-pvc-126 -n moon",
+        "cat /opt/course/13/pvc-126-reason"
+      ]
+    },
+    "successCriteria": [
+      "A StorageClass named moon-retain exists with provisioner moon-retainer and reclaimPolicy Retain.",
+      "A PVC named moon-pvc-126 exists in moon requesting 3Gi ReadWriteOnce with storageClassName moon-retain.",
+      "The PVC is Pending because the provisioner is unavailable.",
+      "The provisioning failure message is saved in /opt/course/13/pvc-126-reason."
+    ],
+    "rationale": "A StorageClass names a provisioner used for dynamic volume provisioning. When the referenced provisioner is unavailable, the PVC stays Pending with a ProvisioningFailed event; reclaimPolicy Retain keeps the underlying volume after the PVC is deleted.",
+    "referenceNotes": [
+      "StorageClasses are cluster-scoped and immutable in most fields, including provisioner and parameters.",
+      "reclaimPolicy on a StorageClass defaults to Delete when omitted.",
+      "Use kubectl describe pvc to see events explaining why provisioning failed."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Team Moonpie, which has the Namespace moon, needs more storage. Create a new PersistentVolumeClaim named moon-pvc-126 in that namespace. This claim should use a new StorageClass moon-retain with the provisioner set to moon-retainer and the reclaimPolicy set to Retain. The claim should request storage of 3Gi, an accessMode of ReadWriteOnce and should use the new StorageClass. The provisioner moon-retainer will be created by another team, so it's expected that the PVC will not boot yet. Confirm this by writing the log message from the PVC into file /opt/course/13/pvc-126-reason.",
+      "instruction": "Create StorageClass `moon-retain` with provisioner `moon-retainer` and `reclaimPolicy: Retain`, then PVC `moon-pvc-126` in Namespace `moon` requesting 3Gi ReadWriteOnce with that class. Describe the Pending PVC and save its provisioning message to `/opt/course/13/pvc-126-reason`. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/13/ (two heredoc manifests)",
+        "content": "apiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: moon-retain\nprovisioner: TODO\nreclaimPolicy: TODO\n---\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: moon-pvc-126\n  namespace: moon\nspec:\n  accessModes:\n  - TODO\n  resources:\n    requests:\n      storage: TODO\n  storageClassName: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "kubectl apply -f - <<'EOF'\napiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: moon-retain\nprovisioner: moon-retainer\nreclaimPolicy: Retain\nEOF": "storageclass.storage.k8s.io/moon-retain created\n",
+        "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: moon-pvc-126\n  namespace: moon\nspec:\n  accessModes:\n  - ReadWriteOnce\n  resources:\n    requests:\n      storage: 3Gi\n  storageClassName: moon-retain\nEOF": "persistentvolumeclaim/moon-pvc-126 created\n",
+        "kubectl describe pvc moon-pvc-126 -n moon": "Name:          moon-pvc-126\nNamespace:     moon\nStatus:        Pending\nCapacity:\nAccess Modes:  [ReadWriteOnce]\nStorageClass:  moon-retain\nEvents:\n  Type     Reason              Age   From                         Message\n  -------  ------              ----  ----                         -------\n  Warning  ProvisioningFailed  10s   persistentvolume-controller  no volume plugin matched name: moon-retainer\n",
+        "kubectl get pvc moon-pvc-126 -n moon -o jsonpath='{.status.conditions[0].message}' > /opt/course/13/pvc-126-reason": "no volume plugin matched name: moon-retainer",
+        "kubectl get sc moon-retain -o yaml": "apiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: moon-retain\nprovisioner: moon-retainer\nreclaimPolicy: Retain\n"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl apply -f - <<'EOF'\napiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: moon-retain\nprovisioner: moon-retainer\nreclaimPolicy: Retain\nEOF": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "StorageClass",
+              "namespace": "",
+              "name": "moon-retain",
+              "labels": {}
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        },
+        "kubectl apply -f - <<'EOF'\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: moon-pvc-126\n  namespace: moon\nspec:\n  accessModes:\n  - ReadWriteOnce\n  resources:\n    requests:\n      storage: 3Gi\n  storageClassName: moon-retain\nEOF": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "PersistentVolumeClaim",
+              "namespace": "moon",
+              "name": "moon-pvc-126",
+              "labels": {}
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        },
+        "kubectl get pvc moon-pvc-126 -n moon -o jsonpath='{.status.conditions[0].message}' > /opt/course/13/pvc-126-reason": {
+          "files": {},
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": []
+        }
+      }
+    }
+  },
+  {
+    "id": "secrets-env-and-volume-mount",
+    "number": 14,
+    "title": "Secrets as Env Vars and Volume",
+    "difficulty": "Medium",
+    "description": "Create two Secrets and modify a Pod to consume one as environment variables and the other as a mounted volume.",
+    "instance": {
+      "host": "ckad9043",
+      "sshCommand": "ssh ckad9043",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad9043.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "Both Secrets must exist only in Namespace moon."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad9043",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "cat /opt/course/14/secret-handler.yaml /opt/course/14/secret2.yaml",
+        "purpose": "Inspect the existing Pod and Secret manifests.",
+        "expectedStdout": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: secret-handler\n  namespace: moon\nspec:\n  containers:\n  - name: secret-handler\n    image: httpd:2.4.41-alpine\n---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: secret2\n  namespace: moon\ntype: Opaque\ndata:\n  username: dXNlcjI=\n  password: cHdkMg==\n"
+      },
+      {
+        "exact": "kubectl create secret generic secret1 -n moon --from-literal=user=test --from-literal=pass=pwd",
+        "purpose": "Create secret1 with the required key-value pairs in moon.",
+        "expectedStdout": "secret/secret1 created\n"
+      },
+      {
+        "exact": "kubectl apply -f /opt/course/14/secret2.yaml",
+        "purpose": "Create secret2 from the provided manifest.",
+        "expectedStdout": "secret/secret2 created\n"
+      },
+      {
+        "exact": "vi /opt/course/14/secret-handler-new.yaml",
+        "purpose": "Write the updated Pod manifest with env var references and the Secret volume mount.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "kubectl apply -f /opt/course/14/secret-handler-new.yaml",
+        "purpose": "Apply the modified Pod configuration.",
+        "expectedStdout": "pod/secret-handler configured\n"
+      },
+      {
+        "exact": "kubectl exec secret-handler -n moon -- env | grep SECRET1_",
+        "purpose": "Verify the Secret-backed environment variables are present in the container.",
+        "expectedStdout": "SECRET1_USER=test\nSECRET1_PASS=pwd\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [
+        {
+          "path": "/opt/course/14/secret-handler-new.yaml",
+          "description": "Final Pod manifest referencing both Secrets.",
+          "content": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: secret-handler\n  namespace: moon\nspec:\n  containers:\n  - name: secret-handler\n    image: httpd:2.4.41-alpine\n    env:\n    - name: SECRET1_USER\n      valueFrom:\n        secretKeyRef:\n          name: secret1\n          key: user\n    - name: SECRET1_PASS\n      valueFrom:\n        secretKeyRef:\n          name: secret1\n          key: pass\n    volumeMounts:\n    - name: secret2-volume\n      mountPath: /tmp/secret2\n      readOnly: true\n  volumes:\n  - name: secret2-volume\n    secret:\n      secretName: secret2\n"
+        }
+      ],
+      "resources": [
+        {
+          "kind": "Secret",
+          "namespace": "moon",
+          "name": "secret1",
+          "labels": {},
+          "annotations": {}
+        },
+        {
+          "kind": "Secret",
+          "namespace": "moon",
+          "name": "secret2",
+          "labels": {},
+          "annotations": {}
+        },
+        {
+          "kind": "Pod",
+          "namespace": "moon",
+          "name": "secret-handler",
+          "labels": {},
+          "annotations": {}
+        }
+      ],
+      "verificationCommands": [
+        "kubectl get secrets -n moon",
+        "kubectl describe pod secret-handler -n moon",
+        "kubectl exec secret-handler -n moon -- env | grep SECRET1_",
+        "kubectl exec secret-handler -n moon -- ls /tmp/secret2",
+        "cat /opt/course/14/secret-handler-new.yaml"
+      ]
+    },
+    "successCriteria": [
+      "Secret secret1 exists in moon with keys user=test and pass=pwd.",
+      "Secret secret2 from the provided manifest exists in moon.",
+      "Pod secret-handler uses secretKeyRef to expose secret1 keys as SECRET1_USER and SECRET1_PASS.",
+      "Pod secret-handler mounts secret2 at /tmp/secret2.",
+      "The updated Pod manifest is saved at /opt/course/14/secret-handler-new.yaml."
+    ],
+    "rationale": "Secrets are namespaced objects consumed by pods either as environment variables via secretKeyRef or as projected files through a secret volume. Env vars are read at container start, while mounted Secret volumes update automatically when the Secret changes.",
+    "referenceNotes": [
+      "secretKeyRef.key refers to the key in the Secret's data/stringData map, not the Secret name.",
+      "A Secret volume creates one file per key at the mountPath.",
+      "Secrets are base64-encoded in data; stringData accepts plain text on creation."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "You need to make changes on an existing Pod in Namespace moon called secret-handler. Create a new Secret secret1 which contains user=test and pass=pwd. The Secret's content should be available in Pod secret-handler as environment variables SECRET1_USER and SECRET1_PASS. The yaml for Pod secret-handler is available at /opt/course/14/secret-handler.yaml. There is existing yaml for another Secret at /opt/course/14/secret2.yaml, create this Secret and mount it inside the same Pod at /tmp/secret2. Your changes should be saved under /opt/course/14/secret-handler-new.yaml on ckad9043. Both Secrets should only be available in Namespace moon.",
+      "instruction": "Create Secret `secret1` with `user=test` and `pass=pwd` in Namespace `moon`, create `secret2` from `/opt/course/14/secret2.yaml`, update Pod `secret-handler` to expose `secret1` as env vars `SECRET1_USER` and `SECRET1_PASS` and mount `secret2` at `/tmp/secret2`, then save the result to `/opt/course/14/secret-handler-new.yaml` and apply it. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/14/secret-handler-new.yaml",
+        "content": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: secret-handler\n  namespace: moon\nspec:\n  containers:\n  - name: secret-handler\n    image: httpd:2.4.41-alpine\n    env:\n    - name: SECRET1_USER\n      valueFrom:\n        secretKeyRef:\n          name: TODO\n          key: TODO\n    - name: SECRET1_PASS\n      valueFrom:\n        secretKeyRef:\n          name: TODO\n          key: TODO\n    volumeMounts:\n    - name: secret2-volume\n      mountPath: TODO\n      readOnly: true\n  volumes:\n  - name: secret2-volume\n    secret:\n      secretName: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "cat /opt/course/14/secret-handler.yaml /opt/course/14/secret2.yaml": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: secret-handler\n  namespace: moon\nspec:\n  containers:\n  - name: secret-handler\n    image: httpd:2.4.41-alpine\n---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: secret2\n  namespace: moon\ntype: Opaque\ndata:\n  username: dXNlcjI=\n  password: cHdkMg==\n",
+        "kubectl create secret generic secret1 -n moon --from-literal=user=test --from-literal=pass=pwd": "secret/secret1 created\n",
+        "kubectl apply -f /opt/course/14/secret2.yaml": "secret/secret2 created\n",
+        "vi /opt/course/14/secret-handler-new.yaml": "",
+        "kubectl apply -f /opt/course/14/secret-handler-new.yaml": "pod/secret-handler configured\n",
+        "kubectl exec secret-handler -n moon -- env | grep SECRET1_": "SECRET1_USER=test\nSECRET1_PASS=pwd\n"
+      },
+      "initialFiles": {
+        "/opt/course/14/secret-handler.yaml": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: secret-handler\n  namespace: moon\nspec:\n  containers:\n  - name: secret-handler\n    image: httpd:2.4.41-alpine\n",
+        "/opt/course/14/secret2.yaml": "apiVersion: v1\nkind: Secret\nmetadata:\n  name: secret2\n  namespace: moon\ntype: Opaque\ndata:\n  username: dXNlcjI=\n  password: cHdkMg==\n"
+      },
+      "effects": {
+        "kubectl create secret generic secret1 -n moon --from-literal=user=test --from-literal=pass=pwd": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "Secret",
+              "namespace": "moon",
+              "name": "secret1",
+              "labels": {}
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        },
+        "kubectl apply -f /opt/course/14/secret2.yaml": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "Secret",
+              "namespace": "moon",
+              "name": "secret2",
+              "labels": {}
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        },
+        "vi /opt/course/14/secret-handler-new.yaml": {
+          "files": {
+            "/opt/course/14/secret-handler-new.yaml": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: secret-handler\n  namespace: moon\nspec:\n  containers:\n  - name: secret-handler\n    image: httpd:2.4.41-alpine\n    env:\n    - name: SECRET1_USER\n      valueFrom:\n        secretKeyRef:\n          name: secret1\n          key: user\n    - name: SECRET1_PASS\n      valueFrom:\n        secretKeyRef:\n          name: secret1\n          key: pass\n    volumeMounts:\n    - name: secret2-volume\n      mountPath: /tmp/secret2\n      readOnly: true\n  volumes:\n  - name: secret2-volume\n    secret:\n      secretName: secret2\n"
+          },
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": []
+        },
+        "kubectl apply -f /opt/course/14/secret-handler-new.yaml": {
+          "files": {},
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": [
+            {
+              "kind": "Pod",
+              "namespace": "moon",
+              "name": "secret-handler",
+              "labels": {},
+              "annotations": {}
+            }
+          ]
+        }
+      },
+      "initialResources": [
+        {
+          "kind": "Pod",
+          "namespace": "moon",
+          "name": "secret-handler"
+        }
+      ]
+    }
+  },
+  {
+    "id": "configmap-web-moon-html",
+    "number": 15,
+    "title": "ConfigMap for nginx HTML",
+    "difficulty": "Easy",
+    "description": "Create a ConfigMap from an HTML file so the preconfigured nginx Deployment can serve it, then verify with a temporary Pod.",
+    "instance": {
+      "host": "ckad9043",
+      "sshCommand": "ssh ckad9043",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad9043.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "The web-moon Deployment is already configured to consume the ConfigMap."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad9043",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "cat /opt/course/15/web-moon.html",
+        "purpose": "Inspect the HTML content that must be stored in the ConfigMap.",
+        "expectedStdout": "<html>\n<body>\n<h1>Team Moonpie</h1>\n</body>\n</html>\n"
+      },
+      {
+        "exact": "kubectl get deploy web-moon -n moon -o yaml",
+        "purpose": "Check how the Deployment mounts the expected ConfigMap.",
+        "expectedStdout": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web-moon\n  namespace: moon\nspec:\n  template:\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:alpine\n        volumeMounts:\n        - name: html\n          mountPath: /usr/share/nginx/html\n      volumes:\n      - name: html\n        configMap:\n          name: configmap-web-moon-html\n"
+      },
+      {
+        "exact": "kubectl create configmap configmap-web-moon-html -n moon --from-file=index.html=/opt/course/15/web-moon.html",
+        "purpose": "Create the ConfigMap in moon with the file content under the index.html key.",
+        "expectedStdout": "configmap/configmap-web-moon-html created\n"
+      },
+      {
+        "exact": "kubectl get configmap configmap-web-moon-html -n moon -o yaml",
+        "purpose": "Confirm the ConfigMap contains the index.html key with the expected content.",
+        "expectedStdout": "apiVersion: v1\nkind: ConfigMap\ndata:\n  index.html: |\n    <html>\n    <body>\n    <h1>Team Moonpie</h1>\n    </body>\n    </html>\nmetadata:\n  name: configmap-web-moon-html\n  namespace: moon\n"
+      },
+      {
+        "exact": "kubectl run tmp-nginx -n moon --image=nginx:alpine --rm -it --restart=Never -- curl -s web-moon:80",
+        "purpose": "Verify nginx serves the ConfigMap content from a temporary Pod.",
+        "expectedStdout": "<html>\n<body>\n<h1>Team Moonpie</h1>\n</body>\n</html>\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [],
+      "resources": [
+        {
+          "kind": "ConfigMap",
+          "namespace": "moon",
+          "name": "configmap-web-moon-html",
+          "labels": {},
+          "annotations": {}
+        }
+      ],
+      "verificationCommands": [
+        "kubectl get cm configmap-web-moon-html -n moon",
+        "kubectl describe cm configmap-web-moon-html -n moon",
+        "kubectl get deploy web-moon -n moon",
+        "kubectl run tmp-nginx -n moon --image=nginx:alpine --rm -it --restart=Never -- curl -s web-moon"
+      ]
+    },
+    "successCriteria": [
+      "A ConfigMap named configmap-web-moon-html exists in Namespace moon.",
+      "The ConfigMap has exactly the data key index.html with the content of /opt/course/15/web-moon.html.",
+      "The web-moon Deployment serves this content through its existing ConfigMap volume.",
+      "A curl test from a temporary nginx:alpine Pod returns the HTML content."
+    ],
+    "rationale": "A ConfigMap stores non-sensitive configuration as key-value data. Mounting it as a volume projects each key as a file, which lets the nginx Deployment serve index.html without rebuilding the image; changing the ConfigMap updates the projected file.",
+    "referenceNotes": [
+      "Use --from-file=KEY=PATH to control the ConfigMap data key name.",
+      "ConfigMap volume updates are eventually reflected in mounted files via a symlink swap.",
+      "ConfigMaps are namespaced, so the ConfigMap and Deployment must be in the same namespace."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Team Moonpie has a nginx server Deployment called web-moon in Namespace moon. Someone started configuring it but it was never completed. To complete please create a ConfigMap called configmap-web-moon-html containing the content of file /opt/course/15/web-moon.html under the data key-name index.html. The Deployment web-moon is already configured to work with this ConfigMap and serve its content. Test the nginx configuration for example using curl from a temporary nginx:alpine Pod.",
+      "instruction": "Create ConfigMap `configmap-web-moon-html` in Namespace `moon` with key `index.html` containing the content of `/opt/course/15/web-moon.html`, verify its data, then curl the web-moon Deployment from a temporary `nginx:alpine` Pod. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/15/ (ConfigMap heredoc manifest)",
+        "content": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: configmap-web-moon-html\n  namespace: moon\ndata:\n  index.html: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "cat /opt/course/15/web-moon.html": "<html>\n<body>\n<h1>Team Moonpie</h1>\n</body>\n</html>\n",
+        "kubectl get deploy web-moon -n moon -o yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web-moon\n  namespace: moon\nspec:\n  template:\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:alpine\n        volumeMounts:\n        - name: html\n          mountPath: /usr/share/nginx/html\n      volumes:\n      - name: html\n        configMap:\n          name: configmap-web-moon-html\n",
+        "kubectl create configmap configmap-web-moon-html -n moon --from-file=index.html=/opt/course/15/web-moon.html": "configmap/configmap-web-moon-html created\n",
+        "kubectl get configmap configmap-web-moon-html -n moon -o yaml": "apiVersion: v1\ndata:\n  index.html: |\n    <html>\n    <body>\n    <h1>Team Moonpie</h1>\n    </body>\n    </html>\nmetadata:\n  name: configmap-web-moon-html\n  namespace: moon\n",
+        "kubectl run tmp-nginx -n moon --image=nginx:alpine --rm -it --restart=Never -- curl -s web-moon:80": "<html>\n<body>\n<h1>Team Moonpie</h1>\n</body>\n</html>\n"
+      },
+      "initialFiles": {
+        "/opt/course/15/web-moon.html": "<html>\n<body>\n<h1>Team Moonpie</h1>\n</body>\n</html>\n"
+      },
+      "effects": {
+        "kubectl create configmap configmap-web-moon-html -n moon --from-file=index.html=/opt/course/15/web-moon.html": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "ConfigMap",
+              "namespace": "moon",
+              "name": "configmap-web-moon-html",
+              "labels": {}
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        }
+      }
+    }
+  }
+]

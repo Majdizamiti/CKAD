@@ -1,0 +1,826 @@
+[
+  {
+    "id": "ckad5601-pod1-status-script",
+    "number": 2,
+    "title": "Create pod1 and save a status command",
+    "difficulty": "Easy",
+    "description": "Create a single Pod of image httpd:2.4.41-alpine in Namespace default. The Pod should be named pod1 and the container should be named pod1-container. Your manager would like to run a command manually on occasion to output the status of that exact Pod. Please write a command that does this into /opt/course/2/pod1-status-command.sh on ckad5601. The command should use kubectl.",
+    "instance": {
+      "host": "ckad5601",
+      "sshCommand": "ssh ckad5601",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad5601.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "The status command must be saved at the exact path /opt/course/2/pod1-status-command.sh.",
+        "The saved command must use kubectl and refer to the exact Pod name pod1."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad5601",
+        "purpose": "Open a session on the exam instance (simulated).",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "echo 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: pod1\n  namespace: default\nspec:\n  containers:\n  - name: pod1-container\n    image: httpd:2.4.41-alpine\n' > /opt/course/2/pod1.yaml",
+        "purpose": "Write a minimal Pod manifest so the container can be named pod1-container.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "kubectl apply -f /opt/course/2/pod1.yaml",
+        "purpose": "Create the Pod in Namespace default from the manifest.",
+        "expectedStdout": "pod/pod1 created"
+      },
+      {
+        "exact": "echo 'kubectl get pod pod1' > /opt/course/2/pod1-status-command.sh",
+        "purpose": "Save the exact kubectl status command to the required script path.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "cat /opt/course/2/pod1-status-command.sh",
+        "purpose": "Verify the saved status command.",
+        "expectedStdout": "kubectl get pod pod1"
+      },
+      {
+        "exact": "kubectl get pod pod1",
+        "purpose": "Confirm that the Pod named pod1 is running in the current (default) Namespace.",
+        "expectedStdout": "NAME   READY   STATUS    RESTARTS   AGE\npod1   1/1     Running   0          12s"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [
+        {
+          "path": "/opt/course/2/pod1-status-command.sh",
+          "description": "Script containing the exact kubectl command that reports the status of pod1.",
+          "content": "kubectl get pod pod1\n"
+        }
+      ],
+      "resources": [
+        {
+          "kind": "Pod",
+          "namespace": "default",
+          "name": "pod1"
+        }
+      ],
+      "verificationCommands": [
+        "kubectl get pod pod1",
+        "cat /opt/course/2/pod1-status-command.sh"
+      ]
+    },
+    "successCriteria": [
+      "Connected to ckad5601 in the simulated session.",
+      "A Pod named pod1 exists in Namespace default and uses image httpd:2.4.41-alpine.",
+      "The Pod has exactly one container named pod1-container.",
+      "/opt/course/2/pod1-status-command.sh contains the command kubectl get pod pod1."
+    ],
+    "rationale": "kubectl run names the container after the resource, so a manifest (or --overrides) is needed when the container name must differ from the Pod name. kubectl get pod <name> is the simplest read-only command that reports the exact Pod's READY, STATUS, RESTARTS and AGE; in the default Namespace no -n flag is required.",
+    "referenceNotes": [
+      "Pod spec: spec.containers[].name is the container name and spec.containers[].image is the image reference.",
+      "kubectl get pod pod1 is short for kubectl get pods pod1 and is equivalent to kubectl get po pod1.",
+      "Add -n <namespace> whenever the target object is outside the current Namespace.",
+      "Other valid status commands include kubectl get pod pod1 -o wide or kubectl describe pod pod1, but the script must contain a working kubectl command."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Create a single Pod of image httpd:2.4.41-alpine in Namespace default. The Pod should be named pod1 and the container should be named pod1-container. Your manager would like to run a command manually on occasion to output the status of that exact Pod. Please write a command that does this into /opt/course/2/pod1-status-command.sh on ckad5601. The command should use kubectl.",
+      "instruction": "Create Pod `pod1` in Namespace `default` with container `pod1-container` (image `httpd:2.4.41-alpine`), then save a `kubectl` command that reports that exact Pod's status to `/opt/course/2/pod1-status-command.sh`. Verify both the Pod and the script. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/2/pod1.yaml",
+        "content": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: pod1\n  namespace: default\nspec:\n  containers:\n  - name: pod1-container\n    image: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "echo 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: pod1\n  namespace: default\nspec:\n  containers:\n  - name: pod1-container\n    image: httpd:2.4.41-alpine\n' > /opt/course/2/pod1.yaml": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: pod1\n  namespace: default\nspec:\n  containers:\n  - name: pod1-container\n    image: httpd:2.4.41-alpine\n",
+        "kubectl apply -f /opt/course/2/pod1.yaml": "pod/pod1 created",
+        "echo 'kubectl get pod pod1' > /opt/course/2/pod1-status-command.sh": "kubectl get pod pod1\n",
+        "cat /opt/course/2/pod1-status-command.sh": "kubectl get pod pod1",
+        "kubectl get pod pod1": "NAME   READY   STATUS    RESTARTS   AGE\npod1   1/1     Running   0          12s"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl apply -f /opt/course/2/pod1.yaml": {
+          "addResources": [
+            {
+              "kind": "Pod",
+              "namespace": "default",
+              "name": "pod1"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "ckad7326-neptune-job-template",
+    "number": 3,
+    "title": "Create and verify the Neptune Job",
+    "difficulty": "Medium",
+    "description": "Team Neptune needs a Job template located at /opt/course/3/job.yaml. This Job should run image busybox:1.31.0 and execute sleep 2 && echo done. It should be in namespace neptune, run a total of 3 times and should execute 2 runs in parallel. Start the Job and check its history. Each pod created by the Job should have the label id: awesome-job. The job should be named neb-new-job and the container neb-new-job-container.",
+    "instance": {
+      "host": "ckad7326",
+      "sshCommand": "ssh ckad7326",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad7326.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "The Job manifest must be saved at the exact path /opt/course/3/job.yaml.",
+        "Do not create Jobs outside Namespace neptune."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad7326",
+        "purpose": "Open a session on the exam instance (simulated).",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "echo 'apiVersion: batch/v1\nkind: Job\nmetadata:\n  name: neb-new-job\n  namespace: neptune\nspec:\n  completions: 3\n  parallelism: 2\n  template:\n    metadata:\n      labels:\n        id: awesome-job\n    spec:\n      restartPolicy: Never\n      containers:\n      - name: neb-new-job-container\n        image: busybox:1.31.0\n        command: [\"sh\", \"-c\", \"sleep 2 && echo done\"]\n' > /opt/course/3/job.yaml",
+        "purpose": "Write the Job manifest with completions, parallelism, the id label and the required command.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "kubectl apply -f /opt/course/3/job.yaml",
+        "purpose": "Start the Job from the saved manifest.",
+        "expectedStdout": "job.batch/neb-new-job created"
+      },
+      {
+        "exact": "kubectl get job neb-new-job -n neptune",
+        "purpose": "Check the Job status and completion history.",
+        "expectedStdout": "NAME          COMPLETIONS   DURATION   AGE\nneb-new-job   3/3           8s         20s"
+      },
+      {
+        "exact": "kubectl get pods -n neptune -l id=awesome-job --show-labels",
+        "purpose": "Confirm that every Pod created by the Job carries the id: awesome-job label.",
+        "expectedStdout": "NAME                  READY   STATUS      RESTARTS   AGE   LABELS\nneb-new-job-8z9kp     0/1     Completed   0          18s   controller-uid=a1b2c3,id=awesome-job,job-name=neb-new-job\nneb-new-job-q2h4m     0/1     Completed   0          17s   controller-uid=a1b2c3,id=awesome-job,job-name=neb-new-job\nneb-new-job-r7v6n     0/1     Completed   0          12s   controller-uid=a1b2c3,id=awesome-job,job-name=neb-new-job"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [
+        {
+          "path": "/opt/course/3/job.yaml",
+          "description": "Job manifest for neb-new-job with completions 3, parallelism 2 and the id label on Job Pods.",
+          "content": "apiVersion: batch/v1\nkind: Job\nmetadata:\n  name: neb-new-job\n  namespace: neptune\nspec:\n  completions: 3\n  parallelism: 2\n  template:\n    metadata:\n      labels:\n        id: awesome-job\n    spec:\n      restartPolicy: Never\n      containers:\n      - name: neb-new-job-container\n        image: busybox:1.31.0\n        command: [\"sh\", \"-c\", \"sleep 2 && echo done\"]\n"
+        }
+      ],
+      "resources": [
+        {
+          "kind": "Job",
+          "namespace": "neptune",
+          "name": "neb-new-job"
+        }
+      ],
+      "verificationCommands": [
+        "kubectl get job neb-new-job -n neptune",
+        "kubectl get pods -n neptune -l id=awesome-job --show-labels"
+      ]
+    },
+    "successCriteria": [
+      "Connected to ckad7326 in the simulated session.",
+      "/opt/course/3/job.yaml contains a valid batch/v1 Job manifest named neb-new-job in Namespace neptune.",
+      "The Job specifies completions: 3 and parallelism: 2.",
+      "The Job container is named neb-new-job-container, uses busybox:1.31.0 and runs sleep 2 && echo done through a shell.",
+      "Every Pod template for the Job has the label id: awesome-job and the Job history shows three completed runs."
+    ],
+    "rationale": "A Job runs Pods until a specified number of completions succeed. spec.completions controls the total number of successful Pods, while spec.parallelism controls how many run concurrently. Labels placed on spec.template.metadata.labels are applied to every Pod created by the controller, which makes them the correct place for id: awesome-job; the command must be wrapped in sh -c because shell operators such as && are not interpreted by the container runtime directly.",
+    "referenceNotes": [
+      "batch/v1 Job fields: spec.completions, spec.parallelism, spec.backoffLimit and spec.template.",
+      "Job Pods require restartPolicy: Never (or OnFailure); the default Always is rejected.",
+      "spec.template.metadata.labels is copied to Pods; metadata.labels on the Job itself is not.",
+      "Use kubectl get job <name> -n <namespace> to see COMPLETIONS and DURATION, and kubectl logs job/<name> to check output."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Team Neptune needs a Job template located at /opt/course/3/job.yaml. This Job should run image busybox:1.31.0 and execute sleep 2 && echo done. It should be in namespace neptune, run a total of 3 times and should execute 2 runs in parallel. Start the Job and check its history. Each pod created by the Job should have the label id: awesome-job. The job should be named neb-new-job and the container neb-new-job-container.",
+      "instruction": "Write the batch/v1 Job manifest to `/opt/course/3/job.yaml` with `completions: 3`, `parallelism: 2`, Namespace `neptune` and Pod label `id: awesome-job`, then apply it and inspect the Job history. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/3/job.yaml",
+        "content": "apiVersion: batch/v1\nkind: Job\nmetadata:\n  name: neb-new-job\n  namespace: neptune\nspec:\n  completions: TODO\n  parallelism: TODO\n  template:\n    metadata:\n      labels:\n        id: TODO\n    spec:\n      restartPolicy: Never\n      containers:\n      - name: neb-new-job-container\n        image: TODO\n        command: [\"sh\", \"-c\", \"TODO\"]\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "echo 'apiVersion: batch/v1\nkind: Job\nmetadata:\n  name: neb-new-job\n  namespace: neptune\nspec:\n  completions: 3\n  parallelism: 2\n  template:\n    metadata:\n      labels:\n        id: awesome-job\n    spec:\n      restartPolicy: Never\n      containers:\n      - name: neb-new-job-container\n        image: busybox:1.31.0\n        command: [\"sh\", \"-c\", \"sleep 2 && echo done\"]\n' > /opt/course/3/job.yaml": "apiVersion: batch/v1\nkind: Job\nmetadata:\n  name: neb-new-job\n  namespace: neptune\nspec:\n  completions: 3\n  parallelism: 2\n  template:\n    metadata:\n      labels:\n        id: awesome-job\n    spec:\n      restartPolicy: Never\n      containers:\n      - name: neb-new-job-container\n        image: busybox:1.31.0\n        command: [\"sh\", \"-c\", \"sleep 2 && echo done\"]\n",
+        "kubectl apply -f /opt/course/3/job.yaml": "job.batch/neb-new-job created",
+        "kubectl get job neb-new-job -n neptune": "NAME          COMPLETIONS   DURATION   AGE\nneb-new-job   3/3           8s         20s",
+        "kubectl get pods -n neptune -l id=awesome-job --show-labels": "NAME                  READY   STATUS      RESTARTS   AGE   LABELS\nneb-new-job-8z9kp     0/1     Completed   0          18s   controller-uid=a1b2c3,id=awesome-job,job-name=neb-new-job\nneb-new-job-q2h4m     0/1     Completed   0          17s   controller-uid=a1b2c3,id=awesome-job,job-name=neb-new-job\nneb-new-job-r7v6n     0/1     Completed   0          12s   controller-uid=a1b2c3,id=awesome-job,job-name=neb-new-job"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl apply -f /opt/course/3/job.yaml": {
+          "addResources": [
+            {
+              "kind": "Job",
+              "namespace": "neptune",
+              "name": "neb-new-job"
+            },
+            {
+              "kind": "Pod",
+              "namespace": "neptune",
+              "name": "neb-new-job-8z9kp",
+              "labels": {
+                "id": "awesome-job"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "ckad7326-mercury-helm-release-operations",
+    "number": 4,
+    "title": "Helm release operations in mercury",
+    "difficulty": "Medium",
+    "description": "Team Mercury asked you to perform some operations using Helm, all in Namespace mercury: 1. Delete release internal-issue-report-apiv1 2. Upgrade release internal-issue-report-apiv2 to any newer version of chart bitnami/nginx available 3. Install a new release internal-issue-report-apache of chart bitnami/apache. The Deployment should have two replicas, set these via Helm-values during install 4. There seems to be a broken release, stuck in pending-install state. Find it and delete it.",
+    "instance": {
+      "host": "ckad7326",
+      "sshCommand": "ssh ckad7326",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad7326.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "All Helm operations target Namespace mercury.",
+        "Do not delete the healthy apiv2 or apache releases."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad7326",
+        "purpose": "Open a session on the exam instance (simulated).",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "helm list -n mercury",
+        "purpose": "List existing releases and spot the one stuck in pending-install state.",
+        "expectedStdout": "NAME                            NAMESPACE   REVISION   UPDATED                                 STATUS          CHART             APP VERSION\ninternal-issue-report-apiv1     mercury     2          2026-11-20 10:12:03.123456 +0000 UTC   deployed        nginx-9.7.4       1.21.6\ninternal-issue-report-apiv2     mercury     1          2026-11-20 10:15:44.987654 +0000 UTC   deployed        nginx-8.9.0       1.20.2\ninternal-issue-report-broken    mercury     1          2026-11-23 08:03:00.000000 +0000 UTC   pending-install apache-8.2.2      2.4.51"
+      },
+      {
+        "exact": "helm uninstall internal-issue-report-apiv1 -n mercury",
+        "purpose": "Delete the obsolete apiv1 release.",
+        "expectedStdout": "release \"internal-issue-report-apiv1\" uninstalled"
+      },
+      {
+        "exact": "helm upgrade internal-issue-report-apiv2 bitnami/nginx -n mercury --version 9.9.2",
+        "purpose": "Upgrade apiv2 to a newer bitnami/nginx chart version.",
+        "expectedStdout": "Release \"internal-issue-report-apiv2\" has been upgraded. Happy Helming!\nNAME: internal-issue-report-apiv2\nLAST DEPLOYED: Tue Nov 24 09:14:02 2026\nNAMESPACE: mercury\nSTATUS: deployed\nREVISION: 2\nTEST SUITE: None"
+      },
+      {
+        "exact": "helm install internal-issue-report-apache bitnami/apache -n mercury --set replicaCount=2",
+        "purpose": "Install the apache chart and set two replicas through Helm values.",
+        "expectedStdout": "NAME: internal-issue-report-apache\nLAST DEPLOYED: Tue Nov 24 09:15:10 2026\nNAMESPACE: mercury\nSTATUS: deployed\nREVISION: 1\nTEST SUITE: None"
+      },
+      {
+        "exact": "helm uninstall internal-issue-report-broken -n mercury",
+        "purpose": "Delete the broken release that was stuck in pending-install state.",
+        "expectedStdout": "release \"internal-issue-report-broken\" uninstalled"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [],
+      "resources": [
+        {
+          "kind": "HelmRelease",
+          "namespace": "mercury",
+          "name": "internal-issue-report-apiv2"
+        },
+        {
+          "kind": "HelmRelease",
+          "namespace": "mercury",
+          "name": "internal-issue-report-apache"
+        }
+      ],
+      "verificationCommands": [
+        "helm list -n mercury",
+        "kubectl get deployment internal-issue-report-apache -n mercury"
+      ]
+    },
+    "successCriteria": [
+      "Connected to ckad7326 in the simulated session.",
+      "Release internal-issue-report-apiv1 no longer exists in Namespace mercury.",
+      "Release internal-issue-report-apiv2 was upgraded from chart version 8.9.0 to a newer bitnami/nginx chart version.",
+      "Release internal-issue-report-apache was installed from bitnami/apache with replicaCount set to 2.",
+      "The release stuck in pending-install state was identified as internal-issue-report-broken and removed."
+    ],
+    "rationale": "Helm 3 stores release state in the cluster and scopes it to a Namespace, so every helm list, install, upgrade and uninstall must include -n mercury. helm upgrade needs an existing release name and a new chart/version, while --set overrides a chart value at install time (replicaCount for bitnami/apache). A release in pending-install never completed its Kubernetes install; helm uninstall removes that release record so the name and resources can be cleaned up.",
+    "referenceNotes": [
+      "helm list -n <namespace> shows NAME, REVISION, STATUS and CHART for each release.",
+      "helm upgrade <release> <chart> --version <chart-version> -n <namespace> increments the release revision.",
+      "Helm values can be supplied with --set key=value, --set-string or -f values.yaml; bitnami/apache uses replicaCount for the Deployment size.",
+      "helm uninstall <release> -n <namespace> removes the release and, by default, the resources it created."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Team Mercury asked you to perform some operations using Helm, all in Namespace mercury: 1. Delete release internal-issue-report-apiv1 2. Upgrade release internal-issue-report-apiv2 to any newer version of chart bitnami/nginx available 3. Install a new release internal-issue-report-apache of chart bitnami/apache. The Deployment should have two replicas, set these via Helm-values during install 4. There seems to be a broken release, stuck in pending-install state. Find it and delete it.",
+      "instruction": "In Namespace `mercury`, list Helm releases, uninstall `internal-issue-report-apiv1`, upgrade `internal-issue-report-apiv2` to a newer `bitnami/nginx`, install `internal-issue-report-apache` from `bitnami/apache` with `replicaCount=2`, then find and delete the release stuck in `pending-install`. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/4/apache-values.yaml",
+        "content": "# Helm values for the new internal-issue-report-apache release\nreplicaCount: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "helm list -n mercury": "NAME                            NAMESPACE   REVISION   UPDATED                                 STATUS          CHART             APP VERSION\ninternal-issue-report-apiv1     mercury     2          2026-11-20 10:12:03.123456 +0000 UTC   deployed        nginx-9.7.4       1.21.6\ninternal-issue-report-apiv2     mercury     1          2026-11-20 10:15:44.987654 +0000 UTC   deployed        nginx-8.9.0       1.20.2\ninternal-issue-report-broken    mercury     1          2026-11-23 08:03:00.000000 +0000 UTC   pending-install apache-8.2.2      2.4.51",
+        "helm uninstall internal-issue-report-apiv1 -n mercury": "release \"internal-issue-report-apiv1\" uninstalled",
+        "helm upgrade internal-issue-report-apiv2 bitnami/nginx -n mercury --version 9.9.2": "Release \"internal-issue-report-apiv2\" has been upgraded. Happy Helming!\nNAME: internal-issue-report-apiv2\nLAST DEPLOYED: Tue Nov 24 09:14:02 2026\nNAMESPACE: mercury\nSTATUS: deployed\nREVISION: 2\nTEST SUITE: None",
+        "helm install internal-issue-report-apache bitnami/apache -n mercury --set replicaCount=2": "NAME: internal-issue-report-apache\nLAST DEPLOYED: Tue Nov 24 09:15:10 2026\nNAMESPACE: mercury\nSTATUS: deployed\nREVISION: 1\nTEST SUITE: None",
+        "helm uninstall internal-issue-report-broken -n mercury": "release \"internal-issue-report-broken\" uninstalled"
+      },
+      "initialFiles": {},
+      "effects": {
+        "helm uninstall internal-issue-report-apiv1 -n mercury": {
+          "removeResources": [
+            {
+              "kind": "HelmRelease",
+              "namespace": "mercury",
+              "name": "internal-issue-report-apiv1"
+            }
+          ]
+        },
+        "helm upgrade internal-issue-report-apiv2 bitnami/nginx -n mercury --version 9.9.2": {
+          "updateResources": [
+            {
+              "kind": "HelmRelease",
+              "namespace": "mercury",
+              "name": "internal-issue-report-apiv2",
+              "labels": {},
+              "annotations": {}
+            }
+          ]
+        },
+        "helm install internal-issue-report-apache bitnami/apache -n mercury --set replicaCount=2": {
+          "addResources": [
+            {
+              "kind": "HelmRelease",
+              "namespace": "mercury",
+              "name": "internal-issue-report-apache"
+            }
+          ]
+        },
+        "helm uninstall internal-issue-report-broken -n mercury": {
+          "removeResources": [
+            {
+              "kind": "HelmRelease",
+              "namespace": "mercury",
+              "name": "internal-issue-report-broken"
+            }
+          ]
+        }
+      },
+      "initialResources": [
+        {
+          "kind": "HelmRelease",
+          "namespace": "mercury",
+          "name": "internal-issue-report-apiv1"
+        },
+        {
+          "kind": "HelmRelease",
+          "namespace": "mercury",
+          "name": "internal-issue-report-apiv2"
+        },
+        {
+          "kind": "HelmRelease",
+          "namespace": "mercury",
+          "name": "internal-issue-report-broken"
+        }
+      ]
+    }
+  },
+  {
+    "id": "ckad7326-neptune-serviceaccount-token",
+    "number": 5,
+    "title": "Extract the ServiceAccount token",
+    "difficulty": "Medium",
+    "description": "Team Neptune has its own ServiceAccount named neptune-sa-v2 in Namespace neptune. A coworker needs the token from the Secret that belongs to that ServiceAccount. Write the base64 decoded token to file /opt/course/5/token on ckad7326.",
+    "instance": {
+      "host": "ckad7326",
+      "sshCommand": "ssh ckad7326",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad7326.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "The decoded token must be written to the exact path /opt/course/5/token.",
+        "Do not modify the ServiceAccount, its Secret or any other cluster object."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad7326",
+        "purpose": "Open a session on the exam instance (simulated).",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl get serviceaccount neptune-sa-v2 -n neptune -o yaml",
+        "purpose": "Find the name of the Secret mounted to the ServiceAccount.",
+        "expectedStdout": "apiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: neptune-sa-v2\n  namespace: neptune\nsecrets:\n- name: neptune-sa-v2-token-xyz12"
+      },
+      {
+        "exact": "kubectl get secret neptune-sa-v2-token-xyz12 -n neptune -o jsonpath='{.data.token}'",
+        "purpose": "Read the base64 encoded token value from the Secret.",
+        "expectedStdout": "ZXlKaGJHY2lPaUpTVXpJMU5pSjkuZXlKemRXSWlPaUp6ZVhOMFpXMDZjMlZ5ZG1salpXRmpZMjkxYm5RNmJtVndkSFZ1WlRwdVpYQjBkVzVsTFhOaExYWXlJbjAuYzJsbmJtRjBkWEps"
+      },
+      {
+        "exact": "kubectl get secret neptune-sa-v2-token-xyz12 -n neptune -o jsonpath='{.data.token}' | base64 -d > /opt/course/5/token",
+        "purpose": "Decode the token and write the plaintext JWT to the required file.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "cat /opt/course/5/token",
+        "purpose": "Verify that the file contains the decoded token rather than the base64 value.",
+        "expectedStdout": "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6bmVwdHVuZTpuZXB0dW5lLXNhLXYyIn0.c2lnbmF0dXJl"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [
+        {
+          "path": "/opt/course/5/token",
+          "description": "Base64 decoded JWT token from the Secret belonging to neptune-sa-v2.",
+          "content": "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6bmVwdHVuZTpuZXB0dW5lLXNhLXYyIn0.c2lnbmF0dXJl\n"
+        }
+      ],
+      "resources": [],
+      "verificationCommands": [
+        "cat /opt/course/5/token",
+        "kubectl get secret neptune-sa-v2-token-xyz12 -n neptune -o jsonpath='{.data.token}'"
+      ]
+    },
+    "successCriteria": [
+      "Connected to ckad7326 in the simulated session.",
+      "The Secret name neptune-sa-v2-token-xyz12 was found from the ServiceAccount neptune-sa-v2 in Namespace neptune.",
+      "/opt/course/5/token exists on ckad7326.",
+      "The file contains the base64 decoded JWT token, not the encoded .data.token value.",
+      "No cluster objects were modified."
+    ],
+    "rationale": "ServiceAccounts are associated with a token Secret listed under .secrets. The token is stored in the Secret's .data.token field as base64 text, so jsonpath must be piped through base64 -d to recover the JWT. Older clusters auto-create these Secrets; newer ones may rely on TokenRequest and have no token Secret, in which case kubectl create token is used instead.",
+    "referenceNotes": [
+      "Inspect the association with kubectl get serviceaccount <name> -n <namespace> -o yaml and look under secrets[].name.",
+      "Secret .data values are base64 encoded; jsonpath prints them exactly as stored.",
+      "Use base64 -d (GNU) or base64 -D (macOS) to decode; on Windows PowerShell use [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(...)).",
+      "On clusters without auto-generated token Secrets, kubectl create token <sa> -n <namespace> issues a token directly."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Team Neptune has its own ServiceAccount named neptune-sa-v2 in Namespace neptune. A coworker needs the token from the Secret that belongs to that ServiceAccount. Write the base64 decoded token to file /opt/course/5/token on ckad7326.",
+      "instruction": "Find the Secret linked to ServiceAccount `neptune-sa-v2` in Namespace `neptune`, read `.data.token`, base64-decode it and save the result to `/opt/course/5/token`. Leave the ServiceAccount and Secret unchanged. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/5/token",
+        "content": "TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "kubectl get serviceaccount neptune-sa-v2 -n neptune -o yaml": "apiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: neptune-sa-v2\n  namespace: neptune\nsecrets:\n- name: neptune-sa-v2-token-xyz12",
+        "kubectl get secret neptune-sa-v2-token-xyz12 -n neptune -o jsonpath='{.data.token}'": "ZXlKaGJHY2lPaUpTVXpJMU5pSjkuZXlKemRXSWlPaUp6ZVhOMFpXMDZjMlZ5ZG1salpXRmpZMjkxYm5RNmJtVndkSFZ1WlRwdVpYQjBkVzVsTFhOaExYWXlJbjAuYzJsbmJtRjBkWEps",
+        "kubectl get secret neptune-sa-v2-token-xyz12 -n neptune -o jsonpath='{.data.token}' | base64 -d": "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6bmVwdHVuZTpuZXB0dW5lLXNhLXYyIn0.c2lnbmF0dXJl\n",
+        "kubectl get secret neptune-sa-v2-token-xyz12 -n neptune -o jsonpath='{.data.token}' | base64 -d > /opt/course/5/token": "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6bmVwdHVuZTpuZXB0dW5lLXNhLXYyIn0.c2lnbmF0dXJl\n",
+        "cat /opt/course/5/token": "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6bmVwdHVuZTpuZXB0dW5lLXNhLXYyIn0.c2lnbmF0dXJl"
+      },
+      "initialFiles": {},
+      "effects": {}
+    }
+  },
+  {
+    "id": "ckad5601-pod6-readiness-probe",
+    "number": 6,
+    "title": "Create pod6 with an exec readiness probe",
+    "difficulty": "Medium",
+    "description": "Create a single Pod named pod6 in Namespace default of image busybox:1.31.0. The Pod should have a readiness probe executing cat /tmp/ready. It should initially wait 5 and periodically wait 10 seconds. The Pod should run the command touch /tmp/ready && sleep 1d, which will create the necessary file to be ready and then idles. Create the Pod and confirm it starts.",
+    "instance": {
+      "host": "ckad5601",
+      "sshCommand": "ssh ckad5601",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad5601.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "The Pod must be in Namespace default and named pod6.",
+        "Do not modify any other Pod or cluster object."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad5601",
+        "purpose": "Open a session on the exam instance (simulated).",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "echo 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: pod6\n  namespace: default\nspec:\n  containers:\n  - name: pod6-container\n    image: busybox:1.31.0\n    command: [\"sh\", \"-c\", \"touch /tmp/ready && sleep 1d\"]\n    readinessProbe:\n      exec:\n        command: [\"cat\", \"/tmp/ready\"]\n      initialDelaySeconds: 5\n      periodSeconds: 10\n' > /opt/course/6/pod6.yaml",
+        "purpose": "Write the Pod manifest with the startup command and exec readiness probe.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "kubectl apply -f /opt/course/6/pod6.yaml",
+        "purpose": "Create the Pod in Namespace default.",
+        "expectedStdout": "pod/pod6 created"
+      },
+      {
+        "exact": "kubectl get pod pod6",
+        "purpose": "Confirm the Pod is Running and Ready after the probe succeeds.",
+        "expectedStdout": "NAME   READY   STATUS    RESTARTS   AGE\npod6   1/1     Running   0          21s"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [],
+      "resources": [
+        {
+          "kind": "Pod",
+          "namespace": "default",
+          "name": "pod6"
+        }
+      ],
+      "verificationCommands": [
+        "kubectl get pod pod6",
+        "kubectl describe pod pod6"
+      ]
+    },
+    "successCriteria": [
+      "Connected to ckad5601 in the simulated session.",
+      "A Pod named pod6 exists in Namespace default using image busybox:1.31.0.",
+      "The container command creates /tmp/ready with touch and then sleeps for one day through a shell.",
+      "The readiness probe executes cat /tmp/ready with initialDelaySeconds 5 and periodSeconds 10.",
+      "The Pod reaches READY 1/1 and STATUS Running."
+    ],
+    "rationale": "A readiness probe controls whether a Pod's IP is added as an endpoint of its Services. An exec probe runs a command inside the container and succeeds on exit code 0, so cat /tmp/ready becomes healthy as soon as the startup command creates that file. initialDelaySeconds delays the first check while the file is created; periodSeconds sets the interval for subsequent checks. The shell wrapper is required because && is a shell operator.",
+    "referenceNotes": [
+      "Probe handlers: exec.command, httpGet and tcpSocket; only one handler type is used per probe.",
+      "initialDelaySeconds and periodSeconds are fields of the probe, not of the container.",
+      "A failing readiness probe keeps the Pod unready but does not restart it; a failing liveness probe triggers a restart.",
+      "Verify probe details with kubectl describe pod pod6 and look at the Events and QoS/Probe sections."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Create a single Pod named pod6 in Namespace default of image busybox:1.31.0. The Pod should have a readiness probe executing cat /tmp/ready. It should initially wait 5 and periodically wait 10 seconds. The Pod should run the command touch /tmp/ready && sleep 1d, which will create the necessary file to be ready and then idles. Create the Pod and confirm it starts.",
+      "instruction": "Create Pod `pod6` in `default` with image `busybox:1.31.0`, command `sh -c \"touch /tmp/ready && sleep 1d\"`, and an exec readiness probe running `cat /tmp/ready` with `initialDelaySeconds: 5` and `periodSeconds: 10`. Apply it and confirm the Pod is Running and Ready. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/6/pod6.yaml",
+        "content": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: pod6\n  namespace: default\nspec:\n  containers:\n  - name: pod6-container\n    image: TODO\n    command: [\"sh\", \"-c\", \"TODO\"]\n    readinessProbe:\n      exec:\n        command: [\"cat\", \"/tmp/ready\"]\n      initialDelaySeconds: TODO\n      periodSeconds: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "echo 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: pod6\n  namespace: default\nspec:\n  containers:\n  - name: pod6-container\n    image: busybox:1.31.0\n    command: [\"sh\", \"-c\", \"touch /tmp/ready && sleep 1d\"]\n    readinessProbe:\n      exec:\n        command: [\"cat\", \"/tmp/ready\"]\n      initialDelaySeconds: 5\n      periodSeconds: 10\n' > /opt/course/6/pod6.yaml": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: pod6\n  namespace: default\nspec:\n  containers:\n  - name: pod6-container\n    image: busybox:1.31.0\n    command: [\"sh\", \"-c\", \"touch /tmp/ready && sleep 1d\"]\n    readinessProbe:\n      exec:\n        command: [\"cat\", \"/tmp/ready\"]\n      initialDelaySeconds: 5\n      periodSeconds: 10\n",
+        "kubectl apply -f /opt/course/6/pod6.yaml": "pod/pod6 created",
+        "kubectl get pod pod6": "NAME   READY   STATUS    RESTARTS   AGE\npod6   1/1     Running   0          21s"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl apply -f /opt/course/6/pod6.yaml": {
+          "addResources": [
+            {
+              "kind": "Pod",
+              "namespace": "default",
+              "name": "pod6"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "ckad7326-move-my-happy-shop-pod",
+    "number": 7,
+    "title": "Move my-happy-shop to Namespace neptune",
+    "difficulty": "Medium",
+    "description": "The board of Team Neptune decided to take over control of one e-commerce webserver from Team Saturn. The administrator who once set up this webserver is not part of the organisation any longer. All information you could get was that the e-commerce system is called my-happy-shop. Search for the correct Pod in Namespace saturn and move it to Namespace neptune. It doesn't matter if you shut it down and spin it up again.",
+    "instance": {
+      "host": "ckad7326",
+      "sshCommand": "ssh ckad7326",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad7326.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "The target Pod must end up in Namespace neptune and no longer exist in Namespace saturn.",
+        "Do not modify Pods that do not belong to my-happy-shop."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad7326",
+        "purpose": "Open a session on the exam instance (simulated).",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl get pods -n saturn --show-labels",
+        "purpose": "Search Namespace saturn for the Pod belonging to my-happy-shop.",
+        "expectedStdout": "NAME            READY   STATUS    RESTARTS   AGE   LABELS\ndb-0            1/1     Running   0          30d   app=db\nmy-happy-shop   1/1     Running   0          12d   app=my-happy-shop,tier=frontend\nqueue-1         1/1     Running   0          9d    app=queue"
+      },
+      {
+        "exact": "kubectl get pod my-happy-shop -n saturn -o yaml > /opt/course/7/my-happy-shop.yaml",
+        "purpose": "Export the Pod definition so it can be recreated in the new Namespace.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "sed -i 's/namespace: saturn/namespace: neptune/' /opt/course/7/my-happy-shop.yaml",
+        "purpose": "Change the exported manifest's Namespace from saturn to neptune.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "kubectl create -f /opt/course/7/my-happy-shop.yaml",
+        "purpose": "Recreate the webserver Pod in Namespace neptune from the edited manifest.",
+        "expectedStdout": "pod/my-happy-shop created"
+      },
+      {
+        "exact": "kubectl delete pod my-happy-shop -n saturn",
+        "purpose": "Shut down the original Pod in Namespace saturn after the replacement exists.",
+        "expectedStdout": "pod \"my-happy-shop\" deleted"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [],
+      "resources": [
+        {
+          "kind": "Pod",
+          "namespace": "neptune",
+          "name": "my-happy-shop",
+          "labels": {
+            "app": "my-happy-shop"
+          }
+        }
+      ],
+      "verificationCommands": [
+        "kubectl get pod my-happy-shop -n neptune",
+        "kubectl get pods -n saturn --show-labels"
+      ]
+    },
+    "successCriteria": [
+      "Connected to ckad7326 in the simulated session.",
+      "The Pod named my-happy-shop was identified in Namespace saturn.",
+      "A Pod named my-happy-shop now exists in Namespace neptune with the webserver image and app label preserved.",
+      "The original my-happy-shop Pod no longer exists in Namespace saturn.",
+      "No other Pods in Namespace saturn were touched."
+    ],
+    "rationale": "A Pod's namespace is part of its object metadata and cannot be changed in place with kubectl; the resource must be recreated in the target Namespace. Exporting the Pod YAML (or describing it and rebuilding the manifest), editing metadata.namespace and applying/creating it again is a reliable approach. The task explicitly allows downtime, so deleting the original after the new Pod is created is sufficient; controller-generated fields such as uid, resourceVersion and status should be removed when reusing exported YAML in a real cluster.",
+    "referenceNotes": [
+      "kubectl get pods -n <namespace> --show-labels helps locate an object when only a human-readable name is known.",
+      "Namespaces are not labels: metadata.namespace is immutable for an existing object, so recreate across Namespaces.",
+      "When reapplying exported YAML, strip cluster-assigned fields: metadata.uid, resourceVersion, creationTimestamp, status and clusterIP.",
+      "Alternative approach: get the image and labels from the old Pod, then kubectl run my-happy-shop --image=<image> -n neptune --labels=app=my-happy-shop."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "The board of Team Neptune decided to take over control of one e-commerce webserver from Team Saturn. The administrator who once set up this webserver is not part of the organisation any longer. All information you could get was that the e-commerce system is called my-happy-shop. Search for the correct Pod in Namespace saturn and move it to Namespace neptune. It doesn't matter if you shut it down and spin it up again.",
+      "instruction": "Find the `my-happy-shop` Pod in Namespace `saturn`, recreate it in Namespace `neptune` using its exported manifest, delete the original, and confirm it only exists in `neptune`. Downtime is allowed. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/7/my-happy-shop.yaml",
+        "content": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: my-happy-shop\n  namespace: TODO\nspec:\n  containers:\n  - name: TODO\n    image: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "kubectl get pods -n saturn --show-labels": "NAME            READY   STATUS    RESTARTS   AGE   LABELS\ndb-0            1/1     Running   0          30d   app=db\nmy-happy-shop   1/1     Running   0          12d   app=my-happy-shop,tier=frontend\nqueue-1         1/1     Running   0          9d    app=queue",
+        "kubectl get pod my-happy-shop -n saturn -o yaml > /opt/course/7/my-happy-shop.yaml": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: my-happy-shop\n  namespace: saturn\n  labels:\n    app: my-happy-shop\n    tier: frontend\nspec:\n  containers:\n  - name: web\n    image: nginx:1.17.1\n    ports:\n    - containerPort: 80\n  restartPolicy: Always\n",
+        "sed -i 's/namespace: saturn/namespace: neptune/' /opt/course/7/my-happy-shop.yaml": "",
+        "kubectl create -f /opt/course/7/my-happy-shop.yaml": "pod/my-happy-shop created",
+        "kubectl delete pod my-happy-shop -n saturn": "pod \"my-happy-shop\" deleted"
+      },
+      "initialFiles": {},
+      "effects": {
+        "sed -i 's/namespace: saturn/namespace: neptune/' /opt/course/7/my-happy-shop.yaml": {
+          "files": {
+            "/opt/course/7/my-happy-shop.yaml": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: my-happy-shop\n  namespace: neptune\n  labels:\n    app: my-happy-shop\n    tier: frontend\nspec:\n  containers:\n  - name: web\n    image: nginx:1.17.1\n    ports:\n    - containerPort: 80\n  restartPolicy: Always\n"
+          }
+        },
+        "kubectl create -f /opt/course/7/my-happy-shop.yaml": {
+          "addResources": [
+            {
+              "kind": "Pod",
+              "namespace": "neptune",
+              "name": "my-happy-shop",
+              "labels": {
+                "app": "my-happy-shop",
+                "tier": "frontend"
+              }
+            }
+          ]
+        },
+        "kubectl delete pod my-happy-shop -n saturn": {
+          "removeResources": [
+            {
+              "kind": "Pod",
+              "namespace": "saturn",
+              "name": "my-happy-shop"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "ckad7326-api-new-c32-rollback",
+    "number": 8,
+    "title": "Roll back the broken api-new-c32 Deployment",
+    "difficulty": "Medium",
+    "description": "There is an existing Deployment named api-new-c32 in Namespace neptune. A developer made an update to the Deployment but the updated version never came online. Check the Deployment history and find a revision that works, then rollback to it. Tell Team Neptune what the error was.",
+    "instance": {
+      "host": "ckad7326",
+      "sshCommand": "ssh ckad7326",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad7326.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "Only Deployment api-new-c32 in Namespace neptune may be rolled back.",
+        "Do not delete the Deployment or create replacement workloads."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad7326",
+        "purpose": "Open a session on the exam instance (simulated).",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl rollout history deployment api-new-c32 -n neptune",
+        "purpose": "List the recorded Deployment revisions and their change causes.",
+        "expectedStdout": "deployment.apps/api-new-c32\nREVISION  CHANGE-CAUSE\n1         initial deployment using nginx:1.17.1\n2         config update, image still nginx:1.17.1\n3         image changed to nginx:1.99.0, tag does not exist\n4         image changed to nginx:1.99.1, tag does not exist"
+      },
+      {
+        "exact": "kubectl rollout history deployment api-new-c32 -n neptune --revision=2",
+        "purpose": "Inspect the last known working revision before rolling back.",
+        "expectedStdout": "deployment.apps/api-new-c32 with revision #2\nPod Template:\n  Labels:  app=api-new-c32\n  Containers:\n   api:\n    Image:  nginx:1.17.1\n    Port:   80/TCP\n  Volumes:  <none>"
+      },
+      {
+        "exact": "kubectl rollout undo deployment api-new-c32 -n neptune --to-revision=2",
+        "purpose": "Roll the Deployment back to the last working revision.",
+        "expectedStdout": "deployment.apps/api-new-c32 rolled back"
+      },
+      {
+        "exact": "kubectl rollout status deployment api-new-c32 -n neptune",
+        "purpose": "Confirm the rollback completed and all replicas are available.",
+        "expectedStdout": "deployment \"api-new-c32\" successfully rolled out"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [],
+      "resources": [
+        {
+          "kind": "Deployment",
+          "namespace": "neptune",
+          "name": "api-new-c32"
+        }
+      ],
+      "verificationCommands": [
+        "kubectl rollout history deployment api-new-c32 -n neptune",
+        "kubectl get deployment api-new-c32 -n neptune"
+      ]
+    },
+    "successCriteria": [
+      "Connected to ckad7326 in the simulated session.",
+      "The Deployment history was inspected and revision 2 was identified as the last working revision.",
+      "Deployment api-new-c32 in Namespace neptune was rolled back with --to-revision=2.",
+      "The rollout completed successfully with all replicas available.",
+      "The reported root cause is the invalid image tag in revisions 3 and 4 (nginx:1.99.0 / nginx:1.99.1 do not exist), which caused ErrImagePull / ImagePullBackOff."
+    ],
+    "rationale": "A Deployment keeps a ReplicaSet for each change to its Pod template. kubectl rollout history lists those revisions, and kubectl rollout undo --to-revision=N restores an earlier Pod template by creating a new revision based on it. Revisions 3 and 4 referenced image tags that do not exist, so the Puller could not start the containers and the new ReplicaSet never became available; rolling back to revision 2 restores the valid nginx:1.17.1 image.",
+    "referenceNotes": [
+      "Set metadata.annotations['kubernetes.io/change-cause'] on a Deployment to get useful entries in kubectl rollout history.",
+      "kubectl rollout undo deployment/<name> without --to-revision rolls back to the previous revision.",
+      "Diagnose failed rollouts with kubectl rollout status, kubectl describe deployment and kubectl get pods to see ErrImagePull or ImagePullBackOff.",
+      "Undo itself creates a new revision, so history grows even when the Pod template matches an older revision."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "There is an existing Deployment named api-new-c32 in Namespace neptune. A developer made an update to the Deployment but the updated version never came online. Check the Deployment history and find a revision that works, then rollback to it. Tell Team Neptune what the error was.",
+      "instruction": "Inspect the rollout history of Deployment `api-new-c32` in Namespace `neptune`, roll back to the last working revision, confirm the rollout succeeded, and report what caused the failed update. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/8/ (command worksheet)",
+        "content": "# Inspect rollout history for api-new-c32 in Namespace neptune\nkubectl -n neptune rollout history deployment/api-new-c32\n# Roll back to the last working revision\nkubectl -n neptune rollout undo deployment/api-new-c32 --to-revision=TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "kubectl rollout history deployment api-new-c32 -n neptune": "deployment.apps/api-new-c32\nREVISION  CHANGE-CAUSE\n1         initial deployment using nginx:1.17.1\n2         config update, image still nginx:1.17.1\n3         image changed to nginx:1.99.0, tag does not exist\n4         image changed to nginx:1.99.1, tag does not exist",
+        "kubectl rollout history deployment api-new-c32 -n neptune --revision=2": "deployment.apps/api-new-c32 with revision #2\nPod Template:\n  Labels:  app=api-new-c32\n  Containers:\n   api:\n    Image:  nginx:1.17.1\n    Port:   80/TCP\n  Volumes:  <none>",
+        "kubectl rollout undo deployment api-new-c32 -n neptune --to-revision=2": "deployment.apps/api-new-c32 rolled back",
+        "kubectl rollout status deployment api-new-c32 -n neptune": "deployment \"api-new-c32\" successfully rolled out"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl rollout undo deployment api-new-c32 -n neptune --to-revision=2": {
+          "updateResources": [
+            {
+              "kind": "Deployment",
+              "namespace": "neptune",
+              "name": "api-new-c32",
+              "labels": {},
+              "annotations": {}
+            }
+          ]
+        }
+      },
+      "initialResources": [
+        {
+          "kind": "Deployment",
+          "namespace": "neptune",
+          "name": "api-new-c32"
+        }
+      ]
+    }
+  }
+]

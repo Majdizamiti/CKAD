@@ -1,0 +1,1093 @@
+[
+  {
+    "id": "q16-logging-sidecar-cleaner",
+    "number": 16,
+    "title": "Logging sidecar for cleaner",
+    "difficulty": "Medium",
+    "description": "Add a busybox sidecar that streams cleaner.log from a shared volume to stdout, persist the updated Deployment manifest and inspect the logs.",
+    "instance": {
+      "host": "ckad7326",
+      "sshCommand": "ssh ckad7326",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad7326.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "Keep /opt/course/16/cleaner.yaml unchanged and save the updated manifest at /opt/course/16/cleaner-new.yaml."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad7326",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl -n mercury get deploy cleaner -o yaml",
+        "purpose": "Inspect the current Deployment, its volume and mount path.",
+        "expectedStdout": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: cleaner\n  namespace: mercury\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: cleaner\n  template:\n    metadata:\n      labels:\n        app: cleaner\n    spec:\n      volumes:\n      - name: log-volume\n        emptyDir: {}\n      containers:\n      - name: cleaner-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - while true; do echo \"cleaner run $(date)\" >> /var/log/cleaner/cleaner.log; sleep 2; done\n        volumeMounts:\n        - name: log-volume\n          mountPath: /var/log/cleaner\n"
+      },
+      {
+        "exact": "kubectl -n mercury patch deploy cleaner --type=strategic -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"logger-con\",\"image\":\"busybox:1.31.0\",\"command\":[\"sh\",\"-c\",\"tail -f /var/log/cleaner/cleaner.log\"],\"volumeMounts\":[{\"name\":\"log-volume\",\"mountPath\":\"/var/log/cleaner\"}]}]}}}}'",
+        "purpose": "Add the logger-con sidecar that tails the shared log file.",
+        "expectedStdout": "deployment.apps/cleaner patched\n"
+      },
+      {
+        "exact": "kubectl -n mercury get deploy cleaner -o yaml > /opt/course/16/cleaner-new.yaml",
+        "purpose": "Persist the updated Deployment manifest to the required path.",
+        "expectedStdout": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: cleaner\n  namespace: mercury\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: cleaner\n  template:\n    metadata:\n      labels:\n        app: cleaner\n    spec:\n      volumes:\n      - name: log-volume\n        emptyDir: {}\n      containers:\n      - name: cleaner-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - while true; do echo \"cleaner run $(date)\" >> /var/log/cleaner/cleaner.log; sleep 2; done\n        volumeMounts:\n        - name: log-volume\n          mountPath: /var/log/cleaner\n      - name: logger-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - tail -f /var/log/cleaner/cleaner.log\n        volumeMounts:\n        - name: log-volume\n          mountPath: /var/log/cleaner\n"
+      },
+      {
+        "exact": "kubectl -n mercury logs deploy/cleaner -c logger-con --tail=10",
+        "purpose": "Read the sidecar logs and look for clues about the missing data incidents.",
+        "expectedStdout": "2026-11-24T09:01:58Z cleaner run\n2026-11-24T09:02:00Z cleaner run\n2026-11-24T09:02:02Z ERROR missing data incident detected for record 4711\n2026-11-24T09:02:04Z cleaner run\n2026-11-24T09:02:06Z ERROR missing data incident detected for record 4712: checksum mismatch\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [
+        {
+          "path": "/opt/course/16/cleaner-new.yaml",
+          "description": "Updated Deployment manifest containing both cleaner-con and the logger-con sidecar sharing log-volume.",
+          "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: cleaner\n  namespace: mercury\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: cleaner\n  template:\n    metadata:\n      labels:\n        app: cleaner\n    spec:\n      volumes:\n      - name: log-volume\n        emptyDir: {}\n      containers:\n      - name: cleaner-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - while true; do echo \"cleaner run $(date)\" >> /var/log/cleaner/cleaner.log; sleep 2; done\n        volumeMounts:\n        - name: log-volume\n          mountPath: /var/log/cleaner\n      - name: logger-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - tail -f /var/log/cleaner/cleaner.log\n        volumeMounts:\n        - name: log-volume\n          mountPath: /var/log/cleaner\n"
+        }
+      ],
+      "resources": [
+        {
+          "kind": "Deployment",
+          "namespace": "mercury",
+          "name": "cleaner",
+          "labels": {
+            "app": "cleaner"
+          },
+          "annotations": {
+            "ckad-sidecar": "logger-con"
+          }
+        }
+      ],
+      "verificationCommands": [
+        "kubectl -n mercury get deploy cleaner -o yaml",
+        "kubectl -n mercury logs deploy/cleaner -c logger-con --tail=10",
+        "cat /opt/course/16/cleaner-new.yaml"
+      ]
+    },
+    "successCriteria": [
+      "Deployment cleaner in namespace mercury has a second container named logger-con using image busybox:1.31.0.",
+      "logger-con mounts the same log-volume at /var/log/cleaner and runs a tail -f on cleaner.log.",
+      "The updated manifest exists at /opt/course/16/cleaner-new.yaml and the original cleaner.yaml is unchanged.",
+      "Sidecar logs show ERROR entries about missing data incidents."
+    ],
+    "rationale": "Containers in one Pod share volumes but not filesystems, so a sidecar can read the same emptyDir volume and forward an application log file to stdout for centralized collection.",
+    "referenceNotes": [
+      "A sidecar is an additional container in the same Pod, not a separate Deployment.",
+      "Both containers must reference the volume with the same volume name and compatible mount paths.",
+      "kubectl logs <pod> -c <container> selects the container whose logs you want to inspect.",
+      "Strategic merge patch adds a container when its name is not present in the containers list."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "The Tech Lead of Mercury2D decided it's time for more logging. There is an existing container named cleaner-con in Deployment cleaner in Namespace mercury. This container mounts a volume and writes logs into a file called cleaner.log. The yaml for the existing Deployment is available at /opt/course/16/cleaner.yaml. Persist your changes at /opt/course/16/cleaner-new.yaml on ckad7326 but also make sure the Deployment is running. Create a sidecar container named logger-con, image busybox:1.31.0, which mounts the same volume and writes the content of cleaner.log to stdout, you can use tail -f. Check if the logs of the new container reveal something about the missing data incidents.",
+      "instruction": "Inspect Deployment `cleaner` in Namespace `mercury`, add sidecar `logger-con` (image `busybox:1.31.0`) sharing `log-volume` and tailing `cleaner.log`, persist the manifest to `/opt/course/16/cleaner-new.yaml`, apply it, then read the sidecar logs with `kubectl logs -c logger-con` and report what they reveal. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/16/cleaner-new.yaml",
+        "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: cleaner\n  namespace: mercury\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: cleaner\n  template:\n    metadata:\n      labels:\n        app: cleaner\n    spec:\n      volumes:\n      - name: log-volume\n        emptyDir: {}\n      containers:\n      - name: cleaner-con\n        image: busybox:1.31.0\n        command: [\"sh\", \"-c\", \"while true; do echo ...; sleep 2; done\"]\n        volumeMounts:\n        - name: log-volume\n          mountPath: /var/log/cleaner\n      # Add the sidecar container below:\n      - name: TODO\n        image: TODO\n        command: [\"sh\", \"-c\", \"TODO\"]\n        volumeMounts:\n        - name: TODO\n          mountPath: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "ssh ckad7326": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1\n",
+        "kubectl -n mercury get deploy cleaner -o yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: cleaner\n  namespace: mercury\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: cleaner\n  template:\n    metadata:\n      labels:\n        app: cleaner\n    spec:\n      volumes:\n      - name: log-volume\n        emptyDir: {}\n      containers:\n      - name: cleaner-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - while true; do echo \"cleaner run $(date)\" >> /var/log/cleaner/cleaner.log; sleep 2; done\n        volumeMounts:\n        - name: log-volume\n          mountPath: /var/log/cleaner\n",
+        "kubectl -n mercury patch deploy cleaner --type=strategic -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"logger-con\",\"image\":\"busybox:1.31.0\",\"command\":[\"sh\",\"-c\",\"tail -f /var/log/cleaner/cleaner.log\"],\"volumeMounts\":[{\"name\":\"log-volume\",\"mountPath\":\"/var/log/cleaner\"}]}]}}}}'": "deployment.apps/cleaner patched\n",
+        "kubectl -n mercury get deploy cleaner -o yaml > /opt/course/16/cleaner-new.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: cleaner\n  namespace: mercury\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: cleaner\n  template:\n    metadata:\n      labels:\n        app: cleaner\n    spec:\n      volumes:\n      - name: log-volume\n        emptyDir: {}\n      containers:\n      - name: cleaner-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - while true; do echo \"cleaner run $(date)\" >> /var/log/cleaner/cleaner.log; sleep 2; done\n        volumeMounts:\n        - name: log-volume\n          mountPath: /var/log/cleaner\n      - name: logger-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - tail -f /var/log/cleaner/cleaner.log\n        volumeMounts:\n        - name: log-volume\n          mountPath: /var/log/cleaner\n",
+        "kubectl -n mercury logs deploy/cleaner -c logger-con --tail=10": "2026-11-24T09:01:58Z cleaner run\n2026-11-24T09:02:00Z cleaner run\n2026-11-24T09:02:02Z ERROR missing data incident detected for record 4711\n2026-11-24T09:02:04Z cleaner run\n2026-11-24T09:02:06Z ERROR missing data incident detected for record 4712: checksum mismatch\n"
+      },
+      "initialFiles": {
+        "/opt/course/16/cleaner.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: cleaner\n  namespace: mercury\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: cleaner\n  template:\n    metadata:\n      labels:\n        app: cleaner\n    spec:\n      volumes:\n      - name: log-volume\n        emptyDir: {}\n      containers:\n      - name: cleaner-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - while true; do echo \"cleaner run $(date)\" >> /var/log/cleaner/cleaner.log; sleep 2; done\n        volumeMounts:\n        - name: log-volume\n          mountPath: /var/log/cleaner\n"
+      },
+      "effects": {
+        "kubectl -n mercury patch deploy cleaner --type=strategic -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"logger-con\",\"image\":\"busybox:1.31.0\",\"command\":[\"sh\",\"-c\",\"tail -f /var/log/cleaner/cleaner.log\"],\"volumeMounts\":[{\"name\":\"log-volume\",\"mountPath\":\"/var/log/cleaner\"}]}]}}}}'": {
+          "files": {},
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": [
+            {
+              "kind": "Deployment",
+              "namespace": "mercury",
+              "name": "cleaner",
+              "labels": {
+                "app": "cleaner"
+              },
+              "annotations": {
+                "ckad-sidecar": "logger-con"
+              }
+            }
+          ]
+        }
+      },
+      "initialResources": [
+        {
+          "kind": "Deployment",
+          "namespace": "mercury",
+          "name": "cleaner",
+          "labels": {
+            "app": "cleaner"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "q17-init-container-index-html",
+    "number": 17,
+    "title": "InitContainer creates index.html",
+    "difficulty": "Medium",
+    "description": "Add a busybox InitContainer that writes index.html into a shared web root before nginx starts, then verify it with curl from a temporary Pod.",
+    "instance": {
+      "host": "ckad5601",
+      "sshCommand": "ssh ckad5601",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad5601.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "Modify the Deployment defined in /opt/course/17/test-init-container.yaml; do not create a second Deployment."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad5601",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl get deploy test-init-container -o yaml",
+        "purpose": "Inspect the Deployment volume and nginx mount path.",
+        "expectedStdout": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: test-init-container\n  namespace: default\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: test-init-container\n  template:\n    metadata:\n      labels:\n        app: test-init-container\n    spec:\n      volumes:\n      - name: webdata\n        emptyDir: {}\n      containers:\n      - name: nginx\n        image: nginx:1.17.3-alpine\n        volumeMounts:\n        - name: webdata\n          mountPath: /usr/share/nginx/html\n"
+      },
+      {
+        "exact": "kubectl patch deploy test-init-container --type=strategic -p '{\"spec\":{\"template\":{\"spec\":{\"initContainers\":[{\"name\":\"init-con\",\"image\":\"busybox:1.31.0\",\"command\":[\"sh\",\"-c\",\"echo \\\"check this out!\\\" > /usr/share/nginx/html/index.html\"],\"volumeMounts\":[{\"name\":\"webdata\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}'",
+        "purpose": "Add the init-con InitContainer that creates index.html in the shared volume.",
+        "expectedStdout": "deployment.apps/test-init-container patched\n"
+      },
+      {
+        "exact": "kubectl get deploy test-init-container -o yaml > /opt/course/17/test-init-container.yaml",
+        "purpose": "Save the corrected Deployment manifest back to the task file.",
+        "expectedStdout": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: test-init-container\n  namespace: default\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: test-init-container\n  template:\n    metadata:\n      labels:\n        app: test-init-container\n    spec:\n      volumes:\n      - name: webdata\n        emptyDir: {}\n      initContainers:\n      - name: init-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - echo \"check this out!\" > /usr/share/nginx/html/index.html\n        volumeMounts:\n        - name: webdata\n          mountPath: /usr/share/nginx/html\n      containers:\n      - name: nginx\n        image: nginx:1.17.3-alpine\n        volumeMounts:\n        - name: webdata\n          mountPath: /usr/share/nginx/html\n"
+      },
+      {
+        "exact": "kubectl run tmp-nginx --image=nginx:alpine --restart=Never --rm -it -- sh -c \"curl -s 10.244.0.23\"",
+        "purpose": "Test the served page from a temporary nginx:alpine Pod.",
+        "expectedStdout": "check this out!\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [
+        {
+          "path": "/opt/course/17/test-init-container.yaml",
+          "description": "Deployment manifest including the init-con InitContainer and its shared volume mount.",
+          "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: test-init-container\n  namespace: default\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: test-init-container\n  template:\n    metadata:\n      labels:\n        app: test-init-container\n    spec:\n      volumes:\n      - name: webdata\n        emptyDir: {}\n      initContainers:\n      - name: init-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - echo \"check this out!\" > /usr/share/nginx/html/index.html\n        volumeMounts:\n        - name: webdata\n          mountPath: /usr/share/nginx/html\n      containers:\n      - name: nginx\n        image: nginx:1.17.3-alpine\n        volumeMounts:\n        - name: webdata\n          mountPath: /usr/share/nginx/html\n"
+        }
+      ],
+      "resources": [
+        {
+          "kind": "Deployment",
+          "namespace": "default",
+          "name": "test-init-container",
+          "labels": {
+            "app": "test-init-container"
+          },
+          "annotations": {
+            "ckad-init-container": "init-con"
+          }
+        }
+      ],
+      "verificationCommands": [
+        "kubectl get deploy test-init-container -o yaml",
+        "kubectl get pods -l app=test-init-container",
+        "cat /opt/course/17/test-init-container.yaml"
+      ]
+    },
+    "successCriteria": [
+      "Deployment test-init-container has an InitContainer named init-con using image busybox:1.31.0.",
+      "init-con mounts the same webdata volume at /usr/share/nginx/html and writes index.html with content 'check this out!'.",
+      "The nginx container still serves from that mount and the Pod reaches Ready.",
+      "A temporary nginx:alpine Pod can curl the page and receives 'check this out!'."
+    ],
+    "rationale": "InitContainers run to completion before app containers start, so they are ideal for preparing shared files in an emptyDir volume that the application then consumes.",
+    "referenceNotes": [
+      "InitContainers are defined under spec.template.spec.initContainers, not under containers.",
+      "They always run sequentially and must exit successfully before app containers are created.",
+      "A volume mounted at the same path in both the InitContainer and app container shares the data.",
+      "Use kubectl run --rm -it for short-lived test Pods."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Last lunch you told your coworker from department Mars Inc how amazing InitContainers are. Now he would like to see one in action. There is a Deployment yaml at /opt/course/17/test-init-container.yaml. This Deployment spins up a single Pod of image nginx:1.17.3-alpine and serves files from a mounted volume, which is empty right now. Create an InitContainer named init-con which also mounts that volume and creates a file index.html with content \"check this out!\" in the root of the mounted volume. The InitContainer should be using image busybox:1.31.0. Test your implementation using curl from a temporary nginx:alpine Pod.",
+      "instruction": "Edit `/opt/course/17/test-init-container.yaml` to add initContainer `init-con` (image `busybox:1.31.0`) that writes `check this out!` to `index.html` on the shared volume, apply it, then curl the served page from a temporary `nginx:alpine` Pod. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/17/test-init-container.yaml",
+        "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: test-init-container\n  namespace: default\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: test-init-container\n  template:\n    metadata:\n      labels:\n        app: test-init-container\n    spec:\n      volumes:\n      - name: webdata\n        emptyDir: {}\n      initContainers:\n      - name: TODO\n        image: TODO\n        command: [\"sh\", \"-c\", \"TODO\"]\n        volumeMounts:\n        - name: TODO\n          mountPath: TODO\n      containers:\n      - name: nginx\n        image: nginx:1.17.3-alpine\n        volumeMounts:\n        - name: webdata\n          mountPath: /usr/share/nginx/html\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "ssh ckad5601": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1\n",
+        "kubectl get deploy test-init-container -o yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: test-init-container\n  namespace: default\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: test-init-container\n  template:\n    metadata:\n      labels:\n        app: test-init-container\n    spec:\n      volumes:\n      - name: webdata\n        emptyDir: {}\n      containers:\n      - name: nginx\n        image: nginx:1.17.3-alpine\n        volumeMounts:\n        - name: webdata\n          mountPath: /usr/share/nginx/html\n",
+        "kubectl patch deploy test-init-container --type=strategic -p '{\"spec\":{\"template\":{\"spec\":{\"initContainers\":[{\"name\":\"init-con\",\"image\":\"busybox:1.31.0\",\"command\":[\"sh\",\"-c\",\"echo \\\"check this out!\\\" > /usr/share/nginx/html/index.html\"],\"volumeMounts\":[{\"name\":\"webdata\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}'": "deployment.apps/test-init-container patched\n",
+        "kubectl get deploy test-init-container -o yaml > /opt/course/17/test-init-container.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: test-init-container\n  namespace: default\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: test-init-container\n  template:\n    metadata:\n      labels:\n        app: test-init-container\n    spec:\n      volumes:\n      - name: webdata\n        emptyDir: {}\n      initContainers:\n      - name: init-con\n        image: busybox:1.31.0\n        command:\n        - sh\n        - -c\n        - echo \"check this out!\" > /usr/share/nginx/html/index.html\n        volumeMounts:\n        - name: webdata\n          mountPath: /usr/share/nginx/html\n      containers:\n      - name: nginx\n        image: nginx:1.17.3-alpine\n        volumeMounts:\n        - name: webdata\n          mountPath: /usr/share/nginx/html\n",
+        "kubectl run tmp-nginx --image=nginx:alpine --restart=Never --rm -it -- sh -c \"curl -s 10.244.0.23\"": "check this out!\n"
+      },
+      "initialFiles": {
+        "/opt/course/17/test-init-container.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: test-init-container\n  namespace: default\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: test-init-container\n  template:\n    metadata:\n      labels:\n        app: test-init-container\n    spec:\n      volumes:\n      - name: webdata\n        emptyDir: {}\n      containers:\n      - name: nginx\n        image: nginx:1.17.3-alpine\n        volumeMounts:\n        - name: webdata\n          mountPath: /usr/share/nginx/html\n"
+      },
+      "effects": {
+        "kubectl patch deploy test-init-container --type=strategic -p '{\"spec\":{\"template\":{\"spec\":{\"initContainers\":[{\"name\":\"init-con\",\"image\":\"busybox:1.31.0\",\"command\":[\"sh\",\"-c\",\"echo \\\"check this out!\\\" > /usr/share/nginx/html/index.html\"],\"volumeMounts\":[{\"name\":\"webdata\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}'": {
+          "files": {},
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": [
+            {
+              "kind": "Deployment",
+              "namespace": "default",
+              "name": "test-init-container",
+              "labels": {
+                "app": "test-init-container"
+              },
+              "annotations": {
+                "ckad-init-container": "init-con"
+              }
+            }
+          ]
+        }
+      },
+      "initialResources": [
+        {
+          "kind": "Deployment",
+          "namespace": "default",
+          "name": "test-init-container",
+          "labels": {
+            "app": "test-init-container"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "q18-fix-service-selector-mars",
+    "number": 18,
+    "title": "Fix Service selector in mars",
+    "difficulty": "Medium",
+    "description": "Diagnose why manager-api-svc does not route to the manager-api Pods and correct the Service selector.",
+    "instance": {
+      "host": "ckad5601",
+      "sshCommand": "ssh ckad5601",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad5601.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "Do not change the Deployment; fix only the ClusterIP Service manager-api-svc."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad5601",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl -n mars get svc manager-api-svc -o yaml",
+        "purpose": "Inspect the Service selector and ports.",
+        "expectedStdout": "apiVersion: v1\nkind: Service\nmetadata:\n  name: manager-api-svc\n  namespace: mars\nspec:\n  type: ClusterIP\n  clusterIP: 10.96.145.22\n  selector:\n    app: manager-api\n  ports:\n  - name: http\n    port: 4444\n    targetPort: 4444\n    protocol: TCP\n"
+      },
+      {
+        "exact": "kubectl -n mars get deploy manager-api-deployment -o yaml",
+        "purpose": "Compare the Service selector with the actual Pod template labels.",
+        "expectedStdout": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: manager-api-deployment\n  namespace: mars\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: manager-api-deploy\n  template:\n    metadata:\n      labels:\n        app: manager-api-deploy\n    spec:\n      containers:\n      - name: manager-api\n        image: nginx:alpine\n        ports:\n        - containerPort: 4444\n"
+      },
+      {
+        "exact": "kubectl -n mars patch svc manager-api-svc -p '{\"spec\":{\"selector\":{\"app\":\"manager-api-deploy\"}}}'",
+        "purpose": "Point the Service selector at the labels used by the Deployment Pods.",
+        "expectedStdout": "service/manager-api-svc patched\n"
+      },
+      {
+        "exact": "kubectl -n mars run tmp-curl --image=nginx:alpine --restart=Never --rm -it -- curl -s manager-api-svc.mars:4444",
+        "purpose": "Verify in-cluster connectivity through the corrected Service DNS name.",
+        "expectedStdout": "{\"status\":\"ok\",\"service\":\"manager-api\"}\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [],
+      "resources": [
+        {
+          "kind": "Service",
+          "namespace": "mars",
+          "name": "manager-api-svc",
+          "labels": {},
+          "annotations": {
+            "ckad-selector": "app=manager-api-deploy"
+          }
+        }
+      ],
+      "verificationCommands": [
+        "kubectl -n mars get svc manager-api-svc -o jsonpath='{.spec.selector}'",
+        "kubectl -n mars get ep manager-api-svc",
+        "kubectl -n mars run tmp-curl --image=nginx:alpine --restart=Never --rm -it -- curl -s manager-api-svc.mars:4444"
+      ]
+    },
+    "successCriteria": [
+      "Service manager-api-svc in namespace mars has selector app=manager-api-deploy matching the Deployment Pod labels.",
+      "The Service keeps type ClusterIP and port 4444.",
+      "curl from a temporary Pod to manager-api-svc.mars:4444 succeeds."
+    ],
+    "rationale": "A Service routes only to Pods whose labels match its selector; a mismatch creates no Endpoints and therefore no working cluster-internal DNS traffic.",
+    "referenceNotes": [
+      "Check endpoints with kubectl get endpoints <service> to see whether a selector matches Pods.",
+      "Service DNS names resolve as <service>.<namespace>.svc.cluster.local; the short <service>.<namespace> form also works inside the cluster.",
+      "targetPort is the port on the Pod, port is the port exposed by the Service.",
+      "Label keys and values in selectors are case-sensitive."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "There seems to be an issue in Namespace mars where the ClusterIP service manager-api-svc should make the Pods of Deployment manager-api-deployment available inside the cluster. You can test this with curl manager-api-svc.mars:4444 from a temporary nginx:alpine Pod. Check for the misconfiguration and apply a fix.",
+      "instruction": "Inspect Service `manager-api-svc` and the Pod labels of Deployment `manager-api-deployment` in Namespace `mars`, patch the Service selector to match, and retest with `curl manager-api-svc.mars:4444` from a temporary `nginx:alpine` Pod. Leave the Deployment unchanged. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/18/ (Service patch worksheet)",
+        "content": "apiVersion: v1\nkind: Service\nmetadata:\n  name: manager-api-svc\n  namespace: mars\nspec:\n  type: ClusterIP\n  selector:\n    app: TODO\n  ports:\n  - port: TODO\n    targetPort: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "ssh ckad5601": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1\n",
+        "kubectl -n mars get svc manager-api-svc -o yaml": "apiVersion: v1\nkind: Service\nmetadata:\n  name: manager-api-svc\n  namespace: mars\nspec:\n  type: ClusterIP\n  clusterIP: 10.96.145.22\n  selector:\n    app: manager-api\n  ports:\n  - name: http\n    port: 4444\n    targetPort: 4444\n    protocol: TCP\n",
+        "kubectl -n mars get deploy manager-api-deployment -o yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: manager-api-deployment\n  namespace: mars\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: manager-api-deploy\n  template:\n    metadata:\n      labels:\n        app: manager-api-deploy\n    spec:\n      containers:\n      - name: manager-api\n        image: nginx:alpine\n        ports:\n        - containerPort: 4444\n",
+        "kubectl -n mars patch svc manager-api-svc -p '{\"spec\":{\"selector\":{\"app\":\"manager-api-deploy\"}}}'": "service/manager-api-svc patched\n",
+        "kubectl -n mars run tmp-curl --image=nginx:alpine --restart=Never --rm -it -- curl -s manager-api-svc.mars:4444": "{\"status\":\"ok\",\"service\":\"manager-api\"}\n"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl -n mars patch svc manager-api-svc -p '{\"spec\":{\"selector\":{\"app\":\"manager-api-deploy\"}}}'": {
+          "files": {},
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": [
+            {
+              "kind": "Service",
+              "namespace": "mars",
+              "name": "manager-api-svc",
+              "labels": {},
+              "annotations": {
+                "ckad-selector": "app=manager-api-deploy"
+              }
+            }
+          ]
+        }
+      },
+      "initialResources": [
+        {
+          "kind": "Service",
+          "namespace": "mars",
+          "name": "manager-api-svc",
+          "labels": {}
+        },
+        {
+          "kind": "Deployment",
+          "namespace": "mars",
+          "name": "manager-api-deployment",
+          "labels": {
+            "app": "manager-api-deploy"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "q19-nodeport-jupiter-crew",
+    "number": 19,
+    "title": "Expose jupiter crew via NodePort",
+    "difficulty": "Medium",
+    "description": "Convert a ClusterIP Service to NodePort on port 30100, then test it from the main terminal against every node's internal IP.",
+    "instance": {
+      "host": "ckad5601",
+      "sshCommand": "ssh ckad5601",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad5601.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "Node internal IPs are reachable from the main terminal; do not change the Deployment or Pod placement."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad5601",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl -n jupiter get nodes -o wide",
+        "purpose": "List all nodes and their internal IPs for the NodePort tests.",
+        "expectedStdout": "NAME           STATUS   ROLES    AGE   VERSION   INTERNAL-IP\nckad-node-01   Ready    <none>   12d   v1.27.3   10.0.0.11\nckad-node-02   Ready    <none>   12d   v1.27.3   10.0.0.12\nckad-node-03   Ready    <none>   12d   v1.27.3   10.0.0.13\n"
+      },
+      {
+        "exact": "kubectl -n jupiter get pods -o wide",
+        "purpose": "Find which node currently runs the jupiter-crew Pod.",
+        "expectedStdout": "NAME                                  READY   STATUS    RESTARTS   AGE   IP            NODE\njupiter-crew-deploy-6f9c7d8b4-x2k9p   1/1     Running   0          3d    10.244.1.17   ckad-node-02\n"
+      },
+      {
+        "exact": "kubectl -n jupiter patch svc jupiter-crew-svc -p '{\"spec\":{\"type\":\"NodePort\",\"ports\":[{\"name\":\"http\",\"port\":80,\"targetPort\":80,\"nodePort\":30100}]}}'",
+        "purpose": "Convert the Service to NodePort with nodePort 30100.",
+        "expectedStdout": "service/jupiter-crew-svc patched\n"
+      },
+      {
+        "exact": "curl -s http://10.0.0.11:30100",
+        "purpose": "Test NodePort connectivity on the first node.",
+        "expectedStdout": "jupiter crew online (served by pod on ckad-node-02)\n"
+      },
+      {
+        "exact": "curl -s http://10.0.0.12:30100",
+        "purpose": "Test NodePort connectivity on the node that hosts the Pod.",
+        "expectedStdout": "jupiter crew online (served by pod on ckad-node-02)\n"
+      },
+      {
+        "exact": "curl -s http://10.0.0.13:30100",
+        "purpose": "Test NodePort connectivity on the third node.",
+        "expectedStdout": "jupiter crew online (served by pod on ckad-node-02)\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [],
+      "resources": [
+        {
+          "kind": "Service",
+          "namespace": "jupiter",
+          "name": "jupiter-crew-svc",
+          "labels": {},
+          "annotations": {
+            "ckad-nodeport": "30100"
+          }
+        }
+      ],
+      "verificationCommands": [
+        "kubectl -n jupiter get svc jupiter-crew-svc -o yaml",
+        "kubectl -n jupiter get pods -o wide",
+        "curl -s http://10.0.0.11:30100",
+        "curl -s http://10.0.0.12:30100",
+        "curl -s http://10.0.0.13:30100"
+      ]
+    },
+    "successCriteria": [
+      "Service jupiter-crew-svc in namespace jupiter has type NodePort with nodePort 30100.",
+      "The Service still targets the jupiter-crew-deploy Pods on port 80.",
+      "curl to 30100 succeeds against 10.0.0.11, 10.0.0.12 and 10.0.0.13.",
+      "The candidate reports that the Pod runs on ckad-node-02 (10.0.0.12)."
+    ],
+    "rationale": "A NodePort Service allocates the same static port on every node and kube-proxy forwards it to matching endpoints, so the Service is reachable via any node IP even when the Pod runs elsewhere.",
+    "referenceNotes": [
+      "NodePort range is 30000-32767 by default and must be unique cluster-wide.",
+      "Setting type to NodePort keeps the ClusterIP; both access paths remain available.",
+      "A request to a node that does not host the Pod is forwarded to a node that does.",
+      "Use kubectl get pods -o wide to see the NODE column for Pod placement."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "In Namespace jupiter you'll find an apache Deployment (with one replica) named jupiter-crew-deploy and a ClusterIP Service called jupiter-crew-svc which exposes it. Change this service to a NodePort one to make it available on all nodes on port 30100. Test the NodePort Service using the internal IP of all available nodes and the port 30100 using curl; you can reach the internal node IPs directly from your main terminal. On which nodes is the Service reachable? On which node is the Pod running?",
+      "instruction": "List node internal IPs and the Pod's NODE, patch Service `jupiter-crew-svc` in `jupiter` to NodePort with `nodePort: 30100`, then curl each node IP on port 30100 and record which nodes respond and where the Pod runs. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/19/ (Service patch worksheet)",
+        "content": "apiVersion: v1\nkind: Service\nmetadata:\n  name: jupiter-crew-svc\n  namespace: jupiter\nspec:\n  type: TODO\n  selector:\n    app: TODO\n  ports:\n  - port: TODO\n    targetPort: TODO\n    nodePort: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "ssh ckad5601": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1\n",
+        "kubectl -n jupiter get nodes -o wide": "NAME           STATUS   ROLES    AGE   VERSION   INTERNAL-IP\nckad-node-01   Ready    <none>   12d   v1.27.3   10.0.0.11\nckad-node-02   Ready    <none>   12d   v1.27.3   10.0.0.12\nckad-node-03   Ready    <none>   12d   v1.27.3   10.0.0.13\n",
+        "kubectl -n jupiter get pods -o wide": "NAME                                  READY   STATUS    RESTARTS   AGE   IP            NODE\njupiter-crew-deploy-6f9c7d8b4-x2k9p   1/1     Running   0          3d    10.244.1.17   ckad-node-02\n",
+        "kubectl -n jupiter patch svc jupiter-crew-svc -p '{\"spec\":{\"type\":\"NodePort\",\"ports\":[{\"name\":\"http\",\"port\":80,\"targetPort\":80,\"nodePort\":30100}]}}'": "service/jupiter-crew-svc patched\n",
+        "curl -s http://10.0.0.11:30100": "jupiter crew online (served by pod on ckad-node-02)\n",
+        "curl -s http://10.0.0.12:30100": "jupiter crew online (served by pod on ckad-node-02)\n",
+        "curl -s http://10.0.0.13:30100": "jupiter crew online (served by pod on ckad-node-02)\n"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl -n jupiter patch svc jupiter-crew-svc -p '{\"spec\":{\"type\":\"NodePort\",\"ports\":[{\"name\":\"http\",\"port\":80,\"targetPort\":80,\"nodePort\":30100}]}}'": {
+          "files": {},
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": [
+            {
+              "kind": "Service",
+              "namespace": "jupiter",
+              "name": "jupiter-crew-svc",
+              "labels": {},
+              "annotations": {
+                "ckad-nodeport": "30100"
+              }
+            }
+          ]
+        }
+      },
+      "initialResources": [
+        {
+          "kind": "Service",
+          "namespace": "jupiter",
+          "name": "jupiter-crew-svc",
+          "labels": {}
+        },
+        {
+          "kind": "Deployment",
+          "namespace": "jupiter",
+          "name": "jupiter-crew-deploy",
+          "labels": {
+            "app": "jupiter-crew-deploy"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "q20-egress-networkpolicy-venus",
+    "number": 20,
+    "title": "Egress NetworkPolicy for frontend",
+    "difficulty": "Hard",
+    "description": "Restrict frontend egress to the api Deployment while keeping DNS resolution available, then verify allowed and denied traffic.",
+    "instance": {
+      "host": "ckad7326",
+      "sshCommand": "ssh ckad7326",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad7326.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "The policy name must be np1 in namespace venus and DNS on UDP/TCP 53 must remain allowed."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad7326",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl -n venus get deploy,svc",
+        "purpose": "Inspect Deployments, Services and their label selectors.",
+        "expectedStdout": "NAME                          READY   UP-TO-DATE   AVAILABLE   AGE\n deployment.apps/api          1/1     1            1           9d\n deployment.apps/frontend     1/1     1            1           9d\n\nNAME            TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE\nservice/api     ClusterIP   10.96.31.14     <none>        2222/TCP   9d\nservice/frontend   ClusterIP   10.96.88.7   <none>        80/TCP     9d\n"
+      },
+      {
+        "exact": "kubectl -n venus apply -f - <<'EOF'\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: np1\n  namespace: venus\nspec:\n  podSelector:\n    matchLabels:\n      app: frontend\n  policyTypes:\n  - Egress\n  egress:\n  - to:\n    - podSelector:\n        matchLabels:\n          app: api\n    ports:\n    - protocol: TCP\n      port: 2222\n  - ports:\n    - protocol: UDP\n      port: 53\n    - protocol: TCP\n      port: 53\nEOF",
+        "purpose": "Create an egress policy for frontend that allows only api:2222 and DNS.",
+        "expectedStdout": "networkpolicy.networking.k8s.io/np1 created\n"
+      },
+      {
+        "exact": "kubectl -n venus exec deploy/frontend -- wget -qO- https://www.google.com --timeout=3",
+        "purpose": "Confirm that general internet egress is denied.",
+        "expectedStdout": "wget: download timed out\ncommand terminated with exit code 1\n"
+      },
+      {
+        "exact": "kubectl -n venus exec deploy/frontend -- wget -qO- http://api:2222 --timeout=3",
+        "purpose": "Confirm that egress to the api Service is still allowed.",
+        "expectedStdout": "api OK\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [],
+      "resources": [
+        {
+          "kind": "NetworkPolicy",
+          "namespace": "venus",
+          "name": "np1",
+          "labels": {},
+          "annotations": {
+            "ckad-egress": "api:2222,dns:53/tcp+udp"
+          }
+        }
+      ],
+      "verificationCommands": [
+        "kubectl -n venus get netpol np1 -o yaml",
+        "kubectl -n venus exec deploy/frontend -- wget -qO- https://www.google.com --timeout=3",
+        "kubectl -n venus exec deploy/frontend -- wget -qO- http://api:2222 --timeout=3"
+      ]
+    },
+    "successCriteria": [
+      "NetworkPolicy np1 exists in namespace venus and selects Pods with label app=frontend.",
+      "policyTypes contains Egress and the only non-DNS egress rule targets app=api on TCP 2222.",
+      "An egress rule allows UDP 53 and TCP 53 for DNS resolution.",
+      "wget to www.google.com from frontend fails while wget to api:2222 succeeds."
+    ],
+    "rationale": "NetworkPolicies are additive and namespace-scoped; once Egress is selected for a Pod, all outbound traffic not explicitly allowed by an egress rule is denied, so DNS must be allowed separately.",
+    "referenceNotes": [
+      "An empty egress rule with ports but no to: allows those ports to any destination, which is the usual DNS exception.",
+      "podSelector inside an egress to: selects Pods in the same namespace as the NetworkPolicy.",
+      "NetworkPolicy requires a CNI plugin that enforces policies.",
+      "Use kubectl exec <pod> -- <command> to run connectivity tests inside a running container."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "In Namespace venus you'll find two Deployments named api and frontend. Both Deployments are exposed inside the cluster using Services. Create a NetworkPolicy named np1 which restricts outgoing tcp connections from Deployment frontend and only allows those going to Deployment api. Make sure the NetworkPolicy still allows outgoing traffic on UDP/TCP ports 53 for DNS resolution. Test using wget www.google.com and wget api:2222 from a Pod of Deployment frontend.",
+      "instruction": "Check the labels on Deployments `api` and `frontend` in Namespace `venus`, create NetworkPolicy `np1` allowing egress only to `app=api` on TCP 2222 plus DNS on UDP/TCP 53, then verify with `wget www.google.com` (should fail) and `wget api:2222` (should succeed) from a `frontend` Pod. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/20/ (heredoc manifest for np1)",
+        "content": "apiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: np1\n  namespace: venus\nspec:\n  podSelector:\n    matchLabels:\n      app: TODO\n  policyTypes:\n  - TODO\n  egress:\n  - to:\n    - podSelector:\n        matchLabels:\n          app: TODO\n    ports:\n    - protocol: TODO\n      port: TODO\n  - ports:\n    - protocol: UDP\n      port: 53\n    - protocol: TCP\n      port: 53\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "ssh ckad7326": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1\n",
+        "kubectl -n venus get deploy,svc": "NAME                          READY   UP-TO-DATE   AVAILABLE   AGE\n deployment.apps/api          1/1     1            1           9d\n deployment.apps/frontend     1/1     1            1           9d\n\nNAME            TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE\nservice/api     ClusterIP   10.96.31.14     <none>        2222/TCP   9d\nservice/frontend   ClusterIP   10.96.88.7   <none>        80/TCP     9d\n",
+        "kubectl -n venus apply -f - <<'EOF'\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: np1\n  namespace: venus\nspec:\n  podSelector:\n    matchLabels:\n      app: frontend\n  policyTypes:\n  - Egress\n  egress:\n  - to:\n    - podSelector:\n        matchLabels:\n          app: api\n    ports:\n    - protocol: TCP\n      port: 2222\n  - ports:\n    - protocol: UDP\n      port: 53\n    - protocol: TCP\n      port: 53\nEOF": "networkpolicy.networking.k8s.io/np1 created\n",
+        "kubectl -n venus exec deploy/frontend -- wget -qO- https://www.google.com --timeout=3": "wget: download timed out\ncommand terminated with exit code 1\n",
+        "kubectl -n venus exec deploy/frontend -- wget -qO- http://api:2222 --timeout=3": "api OK\n"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl -n venus apply -f - <<'EOF'\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: np1\n  namespace: venus\nspec:\n  podSelector:\n    matchLabels:\n      app: frontend\n  policyTypes:\n  - Egress\n  egress:\n  - to:\n    - podSelector:\n        matchLabels:\n          app: api\n    ports:\n    - protocol: TCP\n      port: 2222\n  - ports:\n    - protocol: UDP\n      port: 53\n    - protocol: TCP\n      port: 53\nEOF": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "NetworkPolicy",
+              "namespace": "venus",
+              "name": "np1",
+              "labels": {},
+              "annotations": {
+                "ckad-egress": "api:2222,dns:53/tcp+udp"
+              }
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        }
+      },
+      "initialResources": [
+        {
+          "kind": "Deployment",
+          "namespace": "venus",
+          "name": "api",
+          "labels": {
+            "app": "api"
+          }
+        },
+        {
+          "kind": "Deployment",
+          "namespace": "venus",
+          "name": "frontend",
+          "labels": {
+            "app": "frontend"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "q21-neptune-deployment-sa-resources",
+    "number": 21,
+    "title": "Neptune Deployment with ServiceAccount",
+    "difficulty": "Medium",
+    "description": "Create a three-replica httpd Deployment for team Neptune with memory requests and limits running as an existing ServiceAccount.",
+    "instance": {
+      "host": "ckad7326",
+      "sshCommand": "ssh ckad7326",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad7326.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "Use the existing ServiceAccount neptune-sa-v2; do not create a new one."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad7326",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl -n neptune get sa",
+        "purpose": "Confirm the team ServiceAccount exists.",
+        "expectedStdout": "NAME             SECRETS   AGE\ndefault          1         20d\nneptune-sa-v2    1         20d\n"
+      },
+      {
+        "exact": "kubectl -n neptune apply -f - <<'EOF'\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: neptune-10ab\n  namespace: neptune\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: neptune-10ab\n  template:\n    metadata:\n      labels:\n        app: neptune-10ab\n    spec:\n      serviceAccountName: neptune-sa-v2\n      containers:\n      - name: neptune-pod-10ab\n        image: httpd:2.4-alpine\n        resources:\n          requests:\n            memory: 20Mi\n          limits:\n            memory: 50Mi\nEOF",
+        "purpose": "Create the Deployment with the required replicas, container name, resources and ServiceAccount.",
+        "expectedStdout": "deployment.apps/neptune-10ab created\n"
+      },
+      {
+        "exact": "kubectl -n neptune get deploy neptune-10ab -o yaml",
+        "purpose": "Verify the Deployment spec.",
+        "expectedStdout": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: neptune-10ab\n  namespace: neptune\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: neptune-10ab\n  template:\n    metadata:\n      labels:\n        app: neptune-10ab\n    spec:\n      serviceAccountName: neptune-sa-v2\n      containers:\n      - name: neptune-pod-10ab\n        image: httpd:2.4-alpine\n        resources:\n          requests:\n            memory: 20Mi\n          limits:\n            memory: 50Mi\nstatus:\n  replicas: 3\n  readyReplicas: 3\n  availableReplicas: 3\n"
+      },
+      {
+        "exact": "kubectl -n neptune get pods -l app=neptune-10ab",
+        "purpose": "Confirm three Pods are running.",
+        "expectedStdout": "NAME                               READY   STATUS    RESTARTS   AGE\nneptune-10ab-7d9c8b5f4b-2kq8x   1/1     Running   0          18s\nneptune-10ab-7d9c8b5f4b-5n3pm   1/1     Running   0          18s\nneptune-10ab-7d9c8b5f4b-v8z2d   1/1     Running   0          18s\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [],
+      "resources": [
+        {
+          "kind": "Deployment",
+          "namespace": "neptune",
+          "name": "neptune-10ab",
+          "labels": {
+            "app": "neptune-10ab"
+          },
+          "annotations": {
+            "ckad-serviceaccount": "neptune-sa-v2",
+            "ckad-resources": "memory:20Mi/50Mi"
+          }
+        }
+      ],
+      "verificationCommands": [
+        "kubectl -n neptune get deploy neptune-10ab -o yaml",
+        "kubectl -n neptune get pods -l app=neptune-10ab",
+        "kubectl -n neptune get sa neptune-sa-v2"
+      ]
+    },
+    "successCriteria": [
+      "Deployment neptune-10ab exists in namespace neptune with replicas: 3.",
+      "The container is named neptune-pod-10ab and uses image httpd:2.4-alpine.",
+      "The container has requests.memory 20Mi and limits.memory 50Mi.",
+      "Pods run with serviceAccountName neptune-sa-v2 and all three are Ready."
+    ],
+    "rationale": "A Deployment declares desired Pod state including replica count, container resources and the ServiceAccount whose identity and mounted token the Pods use.",
+    "referenceNotes": [
+      "resource requests influence scheduling; limits cap runtime usage.",
+      "Memory is specified in binary units such as Mi, not megabytes M.",
+      "serviceAccountName is set on the Pod template spec, not on the Deployment metadata.",
+      "A ServiceAccount in a namespace token is projected into every Pod that references it."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Team Neptune needs 3 Pods of image httpd:2.4-alpine, create a Deployment named neptune-10ab for this. The containers should be named neptune-pod-10ab. Each container should have a memory request of 20Mi and a memory limit of 50Mi. Team Neptune has its own ServiceAccount neptune-sa-v2 under which the Pods should run. The Deployment should be in Namespace neptune.",
+      "instruction": "Confirm ServiceAccount `neptune-sa-v2`, then create a 3-replica Deployment `neptune-10ab` in Namespace `neptune` with container `neptune-pod-10ab` (image `httpd:2.4-alpine`), memory request `20Mi`, memory limit `50Mi`, and `serviceAccountName: neptune-sa-v2`. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/21/ (heredoc manifest)",
+        "content": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: neptune-10ab\n  namespace: neptune\nspec:\n  replicas: TODO\n  selector:\n    matchLabels:\n      app: neptune-10ab\n  template:\n    metadata:\n      labels:\n        app: neptune-10ab\n    spec:\n      serviceAccountName: TODO\n      containers:\n      - name: neptune-pod-10ab\n        image: TODO\n        resources:\n          requests:\n            memory: TODO\n          limits:\n            memory: TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "ssh ckad7326": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1\n",
+        "kubectl -n neptune get sa": "NAME             SECRETS   AGE\ndefault          1         20d\nneptune-sa-v2    1         20d\n",
+        "kubectl -n neptune apply -f - <<'EOF'\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: neptune-10ab\n  namespace: neptune\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: neptune-10ab\n  template:\n    metadata:\n      labels:\n        app: neptune-10ab\n    spec:\n      serviceAccountName: neptune-sa-v2\n      containers:\n      - name: neptune-pod-10ab\n        image: httpd:2.4-alpine\n        resources:\n          requests:\n            memory: 20Mi\n          limits:\n            memory: 50Mi\nEOF": "deployment.apps/neptune-10ab created\n",
+        "kubectl -n neptune get deploy neptune-10ab -o yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: neptune-10ab\n  namespace: neptune\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: neptune-10ab\n  template:\n    metadata:\n      labels:\n        app: neptune-10ab\n    spec:\n      serviceAccountName: neptune-sa-v2\n      containers:\n      - name: neptune-pod-10ab\n        image: httpd:2.4-alpine\n        resources:\n          requests:\n            memory: 20Mi\n          limits:\n            memory: 50Mi\nstatus:\n  replicas: 3\n  readyReplicas: 3\n  availableReplicas: 3\n",
+        "kubectl -n neptune get pods -l app=neptune-10ab": "NAME                               READY   STATUS    RESTARTS   AGE\nneptune-10ab-7d9c8b5f4b-2kq8x   1/1     Running   0          18s\nneptune-10ab-7d9c8b5f4b-5n3pm   1/1     Running   0          18s\nneptune-10ab-7d9c8b5f4b-v8z2d   1/1     Running   0          18s\n"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl -n neptune apply -f - <<'EOF'\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: neptune-10ab\n  namespace: neptune\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: neptune-10ab\n  template:\n    metadata:\n      labels:\n        app: neptune-10ab\n    spec:\n      serviceAccountName: neptune-sa-v2\n      containers:\n      - name: neptune-pod-10ab\n        image: httpd:2.4-alpine\n        resources:\n          requests:\n            memory: 20Mi\n          limits:\n            memory: 50Mi\nEOF": {
+          "files": {},
+          "addResources": [
+            {
+              "kind": "Deployment",
+              "namespace": "neptune",
+              "name": "neptune-10ab",
+              "labels": {
+                "app": "neptune-10ab"
+              },
+              "annotations": {
+                "ckad-serviceaccount": "neptune-sa-v2",
+                "ckad-resources": "memory:20Mi/50Mi"
+              }
+            }
+          ],
+          "removeResources": [],
+          "updateResources": []
+        }
+      },
+      "initialResources": [
+        {
+          "kind": "ServiceAccount",
+          "namespace": "neptune",
+          "name": "neptune-sa-v2",
+          "labels": {}
+        }
+      ]
+    }
+  },
+  {
+    "id": "q22-label-annotate-sun-pods",
+    "number": 22,
+    "title": "Label and annotate sun Pods",
+    "difficulty": "Easy",
+    "description": "Bulk-label worker and runner Pods in namespace sun as protected, then annotate every newly protected Pod.",
+    "instance": {
+      "host": "ckad9043",
+      "sshCommand": "ssh ckad9043",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad9043.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "The annotation must be applied only after the protected label is present on the Pods."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad9043",
+        "purpose": "Connect to the practice instance.",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl -n sun get pods --show-labels",
+        "purpose": "List Pods and confirm the existing type labels.",
+        "expectedStdout": "NAME           READY   STATUS    RESTARTS   AGE   LABELS\nsun-runner-1   1/1     Running   0          6d    type=runner\nsun-runner-2   1/1     Running   0          6d    type=runner\nsun-worker-1   1/1     Running   0          6d    type=worker\nsun-worker-2   1/1     Running   0          6d    type=worker\n"
+      },
+      {
+        "exact": "kubectl -n sun label pods -l type=worker protected=true",
+        "purpose": "Add protected=true to all worker Pods.",
+        "expectedStdout": "pod/sun-worker-1 labeled\npod/sun-worker-2 labeled\n"
+      },
+      {
+        "exact": "kubectl -n sun label pods -l type=runner protected=true",
+        "purpose": "Add protected=true to all runner Pods.",
+        "expectedStdout": "pod/sun-runner-1 labeled\npod/sun-runner-2 labeled\n"
+      },
+      {
+        "exact": "kubectl -n sun annotate pods -l protected=true protected=\"do not delete this pod\"",
+        "purpose": "Annotate every Pod that now carries the protected label.",
+        "expectedStdout": "pod/sun-runner-1 annotated\npod/sun-runner-2 annotated\npod/sun-worker-1 annotated\npod/sun-worker-2 annotated\n"
+      },
+      {
+        "exact": "kubectl -n sun get pods --show-labels -l protected=true",
+        "purpose": "Verify all four Pods have the new label.",
+        "expectedStdout": "NAME           READY   STATUS    RESTARTS   AGE   LABELS\nsun-runner-1   1/1     Running   0          6d    protected=true,type=runner\nsun-runner-2   1/1     Running   0          6d    protected=true,type=runner\nsun-worker-1   1/1     Running   0          6d    protected=true,type=worker\nsun-worker-2   1/1     Running   0          6d    protected=true,type=worker\n"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [],
+      "resources": [
+        {
+          "kind": "Pod",
+          "namespace": "sun",
+          "name": "sun-worker-1",
+          "labels": {
+            "type": "worker",
+            "protected": "true"
+          },
+          "annotations": {
+            "protected": "do not delete this pod"
+          }
+        },
+        {
+          "kind": "Pod",
+          "namespace": "sun",
+          "name": "sun-worker-2",
+          "labels": {
+            "type": "worker",
+            "protected": "true"
+          },
+          "annotations": {
+            "protected": "do not delete this pod"
+          }
+        },
+        {
+          "kind": "Pod",
+          "namespace": "sun",
+          "name": "sun-runner-1",
+          "labels": {
+            "type": "runner",
+            "protected": "true"
+          },
+          "annotations": {
+            "protected": "do not delete this pod"
+          }
+        },
+        {
+          "kind": "Pod",
+          "namespace": "sun",
+          "name": "sun-runner-2",
+          "labels": {
+            "type": "runner",
+            "protected": "true"
+          },
+          "annotations": {
+            "protected": "do not delete this pod"
+          }
+        }
+      ],
+      "verificationCommands": [
+        "kubectl -n sun get pods --show-labels",
+        "kubectl -n sun get pods -l protected=true -o jsonpath='{.items[*].metadata.annotations.protected}'",
+        "kubectl -n sun get pods -l type=worker,protected=true",
+        "kubectl -n sun get pods -l type=runner,protected=true"
+      ]
+    },
+    "successCriteria": [
+      "All Pods with type=worker or type=runner in namespace sun have label protected=true.",
+      "All four Pods with protected=true have annotation protected with value 'do not delete this pod'.",
+      "Pods that do not have type worker or runner are not modified."
+    ],
+    "rationale": "kubectl label and kubectl annotate accept label selectors, allowing bulk metadata updates; a selector on the newly added label lets the annotation step target exactly the intended Pods.",
+    "referenceNotes": [
+      "Labels are key-value metadata used by selectors; annotations store non-identifying information.",
+      "Use -l <key>=<value> to select resources for bulk label or annotate commands.",
+      "Add --overwrite when changing the value of an existing label or annotation.",
+      "Verify with kubectl get pods --show-labels or jsonpath on metadata.annotations."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "Team Sunny needs to identify some of their Pods in namespace sun. They ask you to add a new label protected: true to all Pods with an existing label type: worker or type: runner. Also add an annotation protected: do not delete this pod to all Pods having the new label protected: true.",
+      "instruction": "In Namespace `sun`, label all Pods with `type=worker` or `type=runner` as `protected=true`, then annotate every `protected=true` Pod with `protected: do not delete this pod`, and verify the result. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/22/ (command worksheet)",
+        "content": "# Find Pods with type=worker or type=runner in Namespace sun\nkubectl -n sun get pods -l type=TODO --show-labels\n# Add the new label to each matching Pod\nkubectl -n sun label pod TODO protected=true\n# Annotate every protected Pod\nkubectl -n sun annotate pod TODO protected=\"do not delete this pod\"\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "ssh ckad9043": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1\n",
+        "kubectl -n sun get pods --show-labels": "NAME           READY   STATUS    RESTARTS   AGE   LABELS\nsun-runner-1   1/1     Running   0          6d    type=runner\nsun-runner-2   1/1     Running   0          6d    type=runner\nsun-worker-1   1/1     Running   0          6d    type=worker\nsun-worker-2   1/1     Running   0          6d    type=worker\n",
+        "kubectl -n sun label pods -l type=worker protected=true": "pod/sun-worker-1 labeled\npod/sun-worker-2 labeled\n",
+        "kubectl -n sun label pods -l type=runner protected=true": "pod/sun-runner-1 labeled\npod/sun-runner-2 labeled\n",
+        "kubectl -n sun annotate pods -l protected=true protected=\"do not delete this pod\"": "pod/sun-runner-1 annotated\npod/sun-runner-2 annotated\npod/sun-worker-1 annotated\npod/sun-worker-2 annotated\n",
+        "kubectl -n sun get pods --show-labels -l protected=true": "NAME           READY   STATUS    RESTARTS   AGE   LABELS\nsun-runner-1   1/1     Running   0          6d    protected=true,type=runner\nsun-runner-2   1/1     Running   0          6d    protected=true,type=runner\nsun-worker-1   1/1     Running   0          6d    protected=true,type=worker\nsun-worker-2   1/1     Running   0          6d    protected=true,type=worker\n"
+      },
+      "initialFiles": {},
+      "effects": {
+        "kubectl -n sun label pods -l type=worker protected=true": {
+          "files": {},
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": [
+            {
+              "kind": "Pod",
+              "namespace": "sun",
+              "name": "sun-worker-1",
+              "labels": {
+                "type": "worker",
+                "protected": "true"
+              },
+              "annotations": {}
+            },
+            {
+              "kind": "Pod",
+              "namespace": "sun",
+              "name": "sun-worker-2",
+              "labels": {
+                "type": "worker",
+                "protected": "true"
+              },
+              "annotations": {}
+            }
+          ]
+        },
+        "kubectl -n sun label pods -l type=runner protected=true": {
+          "files": {},
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": [
+            {
+              "kind": "Pod",
+              "namespace": "sun",
+              "name": "sun-runner-1",
+              "labels": {
+                "type": "runner",
+                "protected": "true"
+              },
+              "annotations": {}
+            },
+            {
+              "kind": "Pod",
+              "namespace": "sun",
+              "name": "sun-runner-2",
+              "labels": {
+                "type": "runner",
+                "protected": "true"
+              },
+              "annotations": {}
+            }
+          ]
+        },
+        "kubectl -n sun annotate pods -l protected=true protected=\"do not delete this pod\"": {
+          "files": {},
+          "addResources": [],
+          "removeResources": [],
+          "updateResources": [
+            {
+              "kind": "Pod",
+              "namespace": "sun",
+              "name": "sun-worker-1",
+              "labels": {
+                "type": "worker",
+                "protected": "true"
+              },
+              "annotations": {
+                "protected": "do not delete this pod"
+              }
+            },
+            {
+              "kind": "Pod",
+              "namespace": "sun",
+              "name": "sun-worker-2",
+              "labels": {
+                "type": "worker",
+                "protected": "true"
+              },
+              "annotations": {
+                "protected": "do not delete this pod"
+              }
+            },
+            {
+              "kind": "Pod",
+              "namespace": "sun",
+              "name": "sun-runner-1",
+              "labels": {
+                "type": "runner",
+                "protected": "true"
+              },
+              "annotations": {
+                "protected": "do not delete this pod"
+              }
+            },
+            {
+              "kind": "Pod",
+              "namespace": "sun",
+              "name": "sun-runner-2",
+              "labels": {
+                "type": "runner",
+                "protected": "true"
+              },
+              "annotations": {
+                "protected": "do not delete this pod"
+              }
+            }
+          ]
+        }
+      },
+      "initialResources": [
+        {
+          "kind": "Pod",
+          "namespace": "sun",
+          "name": "sun-worker-1",
+          "labels": {
+            "type": "worker"
+          }
+        },
+        {
+          "kind": "Pod",
+          "namespace": "sun",
+          "name": "sun-worker-2",
+          "labels": {
+            "type": "worker"
+          }
+        },
+        {
+          "kind": "Pod",
+          "namespace": "sun",
+          "name": "sun-runner-1",
+          "labels": {
+            "type": "runner"
+          }
+        },
+        {
+          "kind": "Pod",
+          "namespace": "sun",
+          "name": "sun-runner-2",
+          "labels": {
+            "type": "runner"
+          }
+        }
+      ]
+    }
+  }
+]

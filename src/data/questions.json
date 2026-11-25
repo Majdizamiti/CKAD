@@ -1,0 +1,81 @@
+[
+  {
+    "id": "ckad5601-list-namespaces",
+    "number": 1,
+    "title": "List all Namespaces and save the output",
+    "difficulty": "Easy",
+    "description": "A DevOps team needs the list of all Namespaces in the cluster. Connect to ckad5601, list the Namespaces with kubectl, and save the output to /opt/course/1/namespaces on that instance.",
+    "instance": {
+      "host": "ckad5601",
+      "sshCommand": "ssh ckad5601",
+      "localPrompt": "student@localhost:~$",
+      "environmentConstraints": [
+        "Work only on the instance ckad5601.",
+        "No real cluster, container or SSH connection is used in this simulator.",
+        "The exact destination path /opt/course/1/namespaces must be used.",
+        "Do not create, edit or delete any cluster objects."
+      ]
+    },
+    "commands": [
+      {
+        "exact": "ssh ckad5601",
+        "purpose": "Open a session on the exam instance (simulated).",
+        "expectedStdout": "Last login: Tue Nov 24 09:00:00 2026 from 10.0.0.1"
+      },
+      {
+        "exact": "kubectl get namespaces > /opt/course/1/namespaces",
+        "purpose": "List every Namespace and redirect stdout into the required file.",
+        "expectedStdout": ""
+      },
+      {
+        "exact": "cat /opt/course/1/namespaces",
+        "purpose": "Verify the saved file content.",
+        "expectedStdout": "NAME              STATUS   AGE\ndefault           Active   44d\nkube-node-lease   Active   44d\nkube-public       Active   44d\nkube-system       Active   44d"
+      }
+    ],
+    "expected": {
+      "stdout": "",
+      "artifacts": [
+        {
+          "path": "/opt/course/1/namespaces",
+          "description": "File containing the full Namespace listing.",
+          "content": "NAME              STATUS   AGE\ndefault           Active   44d\nkube-node-lease   Active   44d\nkube-public       Active   44d\nkube-system       Active   44d\n"
+        }
+      ],
+      "verificationCommands": [
+        "cat /opt/course/1/namespaces",
+        "kubectl get namespaces"
+      ]
+    },
+    "successCriteria": [
+      "Connected to ckad5601 in the simulated session.",
+      "/opt/course/1/namespaces exists on ckad5601.",
+      "The file contains the complete Namespace table with a NAME, STATUS and AGE column.",
+      "No cluster objects were modified."
+    ],
+    "rationale": "kubectl get namespaces (alias: kubectl get ns) is a read-only, cluster-scoped command, so it works from any namespace without extra permissions. Shell redirection with > captures stdout into a file on the instance where the command runs. The exam checks the resulting file, not the route you took, so the exact path matters more than the alias used.",
+    "referenceNotes": [
+      "Documentation: kubectl get namespaces returns all Namespace objects; it is cluster-scoped and does not require -n.",
+      "Aliases: kubectl get ns, kubectl get namespace and kubectl get namespaces are equivalent.",
+      "Redirection: > writes (or truncates) a file; >> appends. A fresh file is required here.",
+      "Exam tip: verify with cat before finishing, because a typo in the path creates the wrong file."
+    ],
+    "documentation": {
+      "heading": "Task",
+      "task": "The DevOps team needs a list of all Namespaces in this cluster. Connect to ckad5601 and save the list of all Namespaces to /opt/course/1/namespaces.",
+      "instruction": "Use `kubectl` to list all Namespaces and redirect the output to `/opt/course/1/namespaces`, then verify the saved file. Command history is not graded. Fill in the TODO fields in the file template below.",
+      "template": {
+        "path": "/opt/course/1/namespaces",
+        "content": "NAME   STATUS   AGE\nTODO   TODO     TODO\n"
+      }
+    },
+    "mock": {
+      "commandOutputs": {
+        "kubectl get namespaces": "NAME              STATUS   AGE\ndefault           Active   44d\nkube-node-lease   Active   44d\nkube-public       Active   44d\nkube-system       Active   44d",
+        "kubectl get ns": "NAME              STATUS   AGE\ndefault           Active   44d\nkube-node-lease   Active   44d\nkube-public       Active   44d\nkube-system       Active   44d",
+        "kubectl get namespace": "NAME              STATUS   AGE\ndefault           Active   44d\nkube-node-lease   Active   44d\nkube-public       Active   44d\nkube-system       Active   44d"
+      },
+      "initialFiles": {}
+    }
+  }
+]
