@@ -2,6 +2,9 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  // Local dev/preview stay at '/'. GitHub Pages project sites are served from
+  // /<repo>/, so the workflow sets VITE_BASE=/CKAD/ when building for Pages.
+  base: process.env.VITE_BASE || '/',
   plugins: [react()],
   build: {
     rollupOptions: {

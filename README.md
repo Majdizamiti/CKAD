@@ -33,6 +33,22 @@ npm run build    # type-check + production bundle in dist/
 npm run preview  # serve the production build
 ```
 
+## Deploy to GitHub Pages
+
+The site is published from the production bundle in `dist/`, never from the source `index.html`.
+`.github/workflows/deploy.yml` runs on every push to `main`: it installs dependencies, runs the tests,
+builds with `VITE_BASE=/CKAD/`, and deploys the result with the official GitHub Pages actions.
+
+One-time repository setup:
+
+1. Go to **Settings → Pages → Build and deployment**.
+2. Set **Source** to **GitHub Actions** (not "Deploy from a branch").
+3. Push to `main`, or run the **Deploy to GitHub Pages** workflow manually.
+
+The deployed URL is `https://majdizamiti.github.io/CKAD/`. Local `npm run dev` / `npm run preview`
+remain at `/`; only the Pages build uses the `/CKAD/` base. If a custom domain is added later, change
+`VITE_BASE` in the workflow back to `/` and add the domain's `CNAME` file.
+
 ## Offline vs online mode
 
 Both modes are simulated; the distinction is presentational and behavioural, never network-related.
